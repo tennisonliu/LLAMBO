@@ -13,7 +13,7 @@ Bayesian optimization (BO) is a powerful approach for optimizing complex and exp
 
 ---
 
-### 1. Setup
+## 1. Setup
 
 1. If using OpenAI, set up environment variables:
 
