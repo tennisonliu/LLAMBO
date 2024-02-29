@@ -1,0 +1,42 @@
+[
+    {
+        "n_estimators": 16,
+        "learning_rate": 1.5839636792271974
+    },
+    {
+        "n_estimators": 21,
+        "learning_rate": 0.07023549332126304
+    },
+    {
+        "n_estimators": 49,
+        "learning_rate": 0.00012409093110171479
+    },
+    {
+        "n_estimators": 14,
+        "learning_rate": 0.0017355674086288744
+    },
+    {
+        "n_estimators": 18,
+        "learning_rate": 0.2979327625937022
+    },
+    {
+        "n_estimators": 23,
+        "learning_rate": 0.018444271465762524
+    },
+    {
+        "n_estimators": 29,
+        "learning_rate": 0.005882004594878859
+    },
+    {
+        "n_estimators": 54,
+        "learning_rate": 3.6855917628270314
+    },
+    {
+        "n_estimators": 79,
+        "learning_rate": 7.383143927638115
+    },
+    {
+        "n_estimators": 46,
+        "learning_rate": 0.058057689976744084
+    }
+]

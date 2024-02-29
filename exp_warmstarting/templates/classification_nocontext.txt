@@ -1,0 +1,5 @@
+You are assisting me with automated machine learning using [MODEL].
+I’m exploring a subset of hyperparameters detailed as: [CONFIGURATION_AND_TYPE].
+Please suggest [NUM_RECOMMENDATION] diverse yet effective configurations to initiate a Bayesian Optimization process for hyperparameter tuning.
+You mustn't include ‘None’ in the configurations.
+Your response should include only a list of dictionaries, where each dictionary describes one recommended configuration. Do not enumerate the dictionaries.

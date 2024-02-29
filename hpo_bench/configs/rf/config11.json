@@ -1,0 +1,32 @@
+[
+    {
+        "max_depth": 1,
+        "max_features": 0,
+        "min_samples_leaf": 4,
+        "min_samples_split": 7
+    },
+    {
+        "max_depth": 3,
+        "max_features": 4,
+        "min_samples_leaf": 0,
+        "min_samples_split": 4
+    },
+    {
+        "max_depth": 8,
+        "max_features": 8,
+        "min_samples_leaf": 7,
+        "min_samples_split": 1
+    },
+    {
+        "max_depth": 7,
+        "max_features": 8,
+        "min_samples_leaf": 1,
+        "min_samples_split": 6
+    },
+    {
+        "max_depth": 0,
+        "max_features": 1,
+        "min_samples_leaf": 3,
+        "min_samples_split": 1
+    }
+]

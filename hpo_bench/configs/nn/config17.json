@@ -1,0 +1,37 @@
+[
+    {
+        "alpha": 3,
+        "batch_size": 5,
+        "depth": 0,
+        "learning_rate_init": 1,
+        "width": 7
+    },
+    {
+        "alpha": 6,
+        "batch_size": 6,
+        "depth": 1,
+        "learning_rate_init": 0,
+        "width": 3
+    },
+    {
+        "alpha": 9,
+        "batch_size": 1,
+        "depth": 2,
+        "learning_rate_init": 8,
+        "width": 0
+    },
+    {
+        "alpha": 6,
+        "batch_size": 5,
+        "depth": 1,
+        "learning_rate_init": 4,
+        "width": 3
+    },
+    {
+        "alpha": 3,
+        "batch_size": 5,
+        "depth": 1,
+        "learning_rate_init": 7,
+        "width": 4
+    }
+]

@@ -1,0 +1,82 @@
+[
+    {
+        "hidden_layer_sizes": 84,
+        "alpha": 0.0008200368234233452,
+        "batch_size": 245,
+        "learning_rate_init": 0.0006642623740593297,
+        "power_t": 0.19675187237917643,
+        "momentum": 0.006187252817877669
+    },
+    {
+        "hidden_layer_sizes": 63,
+        "alpha": 0.0032827156264414897,
+        "batch_size": 14,
+        "learning_rate_init": 0.0012913952340288435,
+        "power_t": 0.6746014707377317,
+        "momentum": 0.00982593743475593
+    },
+    {
+        "hidden_layer_sizes": 109,
+        "alpha": 0.11116870270214292,
+        "batch_size": 171,
+        "learning_rate_init": 0.0059720894186451115,
+        "power_t": 0.2138661655160226,
+        "momentum": 0.6140174059962987
+    },
+    {
+        "hidden_layer_sizes": 89,
+        "alpha": 0.31957762667561357,
+        "batch_size": 71,
+        "learning_rate_init": 0.02542016382697843,
+        "power_t": 0.14658466754879512,
+        "momentum": 0.23547615657468535
+    },
+    {
+        "hidden_layer_sizes": 191,
+        "alpha": 0.00493122447162461,
+        "batch_size": 102,
+        "learning_rate_init": 0.0002690921100550543,
+        "power_t": 0.1529354464713778,
+        "momentum": 0.0020016044504532742
+    },
+    {
+        "hidden_layer_sizes": 122,
+        "alpha": 0.04810838948524109,
+        "batch_size": 238,
+        "learning_rate_init": 0.0002483278923995012,
+        "power_t": 0.18359552384046465,
+        "momentum": 0.02184357273243083
+    },
+    {
+        "hidden_layer_sizes": 194,
+        "alpha": 0.00011952571702730617,
+        "batch_size": 44,
+        "learning_rate_init": 2.1579053911816398e-05,
+        "power_t": 0.33280896789718695,
+        "momentum": 0.008521046518687394
+    },
+    {
+        "hidden_layer_sizes": 92,
+        "alpha": 3.357076522116173,
+        "batch_size": 114,
+        "learning_rate_init": 0.00047318274864140174,
+        "power_t": 0.8731644576510803,
+        "momentum": 0.2400850841802492
+    },
+    {
+        "hidden_layer_sizes": 101,
+        "alpha": 0.0006339200039112046,
+        "batch_size": 131,
+        "learning_rate_init": 0.003111883251747105,
+        "power_t": 0.423556070781364,
+        "momentum": 0.005988178190469231
+    },
+    {
+        "hidden_layer_sizes": 111,
+        "alpha": 0.10082415718146524,
+        "batch_size": 115,
+        "learning_rate_init": 0.01339497952692022,
+        "power_t": 0.4500927551387431,
+        "momentum": 0.16207024961012512
+    }
+]

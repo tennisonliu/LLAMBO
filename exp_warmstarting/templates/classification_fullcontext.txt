@@ -1,0 +1,13 @@
+You are assisting me with automated machine learning using [MODEL].
+The dataset has [NUM_SAMPLES] samples with [NUM_FEATURES] total features, of which [NUM_NUM_FEATURES] are numerical and [NUM_CAT_FEATURES] are categorical.
+Considering one-hot encoding for categorical features the total amount input's features of the random forest is [TOTAL_FEATURES].
+[NUM_STAT]
+The number of features that have strong correlation (defined as > 0.5 or <-0.5) with the target feature is [CORR_TARGET].
+Of the [NUM_POSSIBLE] pairwise feature relationships, [CORR_FEATURES] pairs of features are strongly correlated (>0.5, <-0.5).
+[ADD_CLASS_INFO]
+I’m exploring a subset of hyperparameters detailed as: [CONFIGURATION_AND_TYPE].
+
+Provide [NUM_RECOMMENDATION] diverse and efficient configuration suggestions to commence a Bayesian Optimization procedure aimed at fine-tuning hyperparameters.
+These configurations should be carefully customized to suit the characteristics of the dataset at hand.
+"You mustn't include ‘None’ in the configurations.
+Your response should include only a list of dictionaries, where each dictionary describes one recommended configuration. Do not enumerate the dictionaries.

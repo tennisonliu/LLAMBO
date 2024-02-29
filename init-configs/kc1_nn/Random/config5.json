@@ -1,0 +1,72 @@
+[
+    {
+        "alpha": 2,
+        "batch_size": 8,
+        "depth": 0,
+        "learning_rate_init": 8,
+        "width": 4
+    },
+    {
+        "alpha": 6,
+        "batch_size": 7,
+        "depth": 1,
+        "learning_rate_init": 3,
+        "width": 2
+    },
+    {
+        "alpha": 1,
+        "batch_size": 7,
+        "depth": 1,
+        "learning_rate_init": 1,
+        "width": 8
+    },
+    {
+        "alpha": 2,
+        "batch_size": 4,
+        "depth": 1,
+        "learning_rate_init": 6,
+        "width": 5
+    },
+    {
+        "alpha": 5,
+        "batch_size": 2,
+        "depth": 1,
+        "learning_rate_init": 2,
+        "width": 3
+    },
+    {
+        "alpha": 1,
+        "batch_size": 1,
+        "depth": 2,
+        "learning_rate_init": 9,
+        "width": 2
+    },
+    {
+        "alpha": 0,
+        "batch_size": 2,
+        "depth": 1,
+        "learning_rate_init": 7,
+        "width": 0
+    },
+    {
+        "alpha": 5,
+        "batch_size": 0,
+        "depth": 1,
+        "learning_rate_init": 6,
+        "width": 9
+    },
+    {
+        "alpha": 2,
+        "batch_size": 7,
+        "depth": 2,
+        "learning_rate_init": 8,
+        "width": 0
+    },
+    {
+        "alpha": 4,
+        "batch_size": 9,
+        "depth": 1,
+        "learning_rate_init": 7,
+        "width": 5
+    }
+]

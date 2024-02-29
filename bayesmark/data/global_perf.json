@@ -1,0 +1,18 @@
+{
+    "wine": {
+        "global_max": 1.0,
+        "global_min": 0.4444444444444444
+    },
+    "breast": {
+        "global_max": 0.9824561403508771,
+        "global_min": 0.5877192982456141
+    },
+    "digits": {
+        "global_max": 0.8888888888888888,
+        "global_min": 0.08055555555555556
+    },
+    "diabetes": {
+        "global_max": 0.8389739213304408,
+        "global_min": 0.5817586934044268
+    }
+}

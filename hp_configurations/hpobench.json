@@ -1,0 +1,149 @@
+{
+    "rf": {
+        "max_depth": ["ordinal", "linear", [
+            1.0,
+            2.0,
+            3.0,
+            5.0,
+            8.0,
+            13.0,
+            20.0,
+            32.0,
+            50.0
+        ]],
+        "max_features": ["ordinal", "linear", [
+            0.0,
+            0.11,
+            0.22,
+            0.33,
+            0.44,
+            0.55,
+            0.66,
+            0.77,
+            0.88,
+            1.0
+        ]],
+        "min_samples_leaf": ["ordinal", "linear", [
+            1.0, 3.0, 5.0, 7.0, 9.0, 11.0, 13.0, 15.0, 17.0, 20.0
+        ]],
+        "min_samples_split": ["ordinal", "linear", [
+            2.0, 3.0, 5.0, 8.0, 12.0, 20.0, 32.0, 50.0, 80.0, 128.0
+        ]]
+    },
+    "xgb": {
+        "colsample_bytree": ["ordinal", "linear",  [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9,
+        1.0
+    ]],
+        "eta": ["ordinal", "linear", [
+            0.0009,
+            0.0021,
+            0.0045,
+            0.0098,
+            0.0212,
+            0.0459,
+            0.0992,
+            0.2143,
+            0.4629,
+            1.0
+        ]],
+        "max_depth": ["ordinal", "linear",  [
+            1.0, 2.0, 3.0, 5.0, 8.0, 13.0, 20.0, 32.0, 50.0
+        ]],
+        "reg_lambda": ["ordinal", "linear",  [
+            0.0009,
+            0.0045,
+            0.0212,
+            0.0992,
+            0.4629,
+            2.1601,
+            10.0793,
+            47.0315,
+            219.4544,
+            1024.0
+        ]]
+    },
+    "nn": {
+        "alpha": ["ordinal", "linear", [
+            1e-8,
+            7.7426e-8,
+            5.9948e-7,
+            4.6415e-6,
+            3.5938e-5,
+            2.7825e-4,
+            2.1544e-3,
+            1.6681e-2,
+            1.2915e-1,
+            1
+        ]],
+        "batch_size": ["ordinal", "linear",  [
+            4,
+            6,
+            10,
+            16,
+            25,
+            40,
+            64,
+            101,
+            161,
+            256
+        ]],
+        "depth": ["ordinal", "linear", [
+            1,
+            2,
+            3
+        ]],
+        "learning_rate_init": ["ordinal", "linear",  [
+            1e-5,
+            3.5938e-5,
+            1.2915e-4,
+            4.6415e-4,
+            1.6681e-3,
+            5.9948e-3,
+            2.1544e-2,
+            7.7426e-2,
+            2.7825e-1,
+            1
+        ]],
+        "width": ["ordinal", "linear",  [
+            16,
+            25,
+            40,
+            64,
+            101,
+            161,
+            256,
+            406,
+            645,
+            1024
+        ]]
+    },
+
+    "rf_": {
+        "max_depth": ["int", "linear", [0, 8]],
+        "max_features": ["int", "linear", [0, 9]],
+        "min_samples_leaf": ["int", "linear", [0, 9]],
+        "min_samples_split": ["int", "linear", [0, 9]]
+    },
+    "xgb_": {
+        "colsample_bytree": ["int", "linear",  0, 9],
+        "eta": ["int", "linear",  0, 9],
+        "max_depth": ["int", "linear",  0, 8],
+        "reg_lambda": ["int", "linear",  0, 9]
+    },
+    "nn_": {
+        "alpha": ["int", "linear",  0, 9],
+        "batch_size": ["int", "linear",  0, 9],
+        "depth": ["int", "linear", 0, 2],
+        "learning_rate_init": ["int", "linear",  0, 9],
+        "width": ["int", "linear",  0, 9]
+    }
+}

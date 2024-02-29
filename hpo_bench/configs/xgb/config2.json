@@ -1,0 +1,32 @@
+[
+    {
+        "colsample_bytree": 4,
+        "eta": 0,
+        "max_depth": 4,
+        "reg_lambda": 4
+    },
+    {
+        "colsample_bytree": 4,
+        "eta": 3,
+        "max_depth": 2,
+        "reg_lambda": 6
+    },
+    {
+        "colsample_bytree": 3,
+        "eta": 2,
+        "max_depth": 5,
+        "reg_lambda": 5
+    },
+    {
+        "colsample_bytree": 1,
+        "eta": 5,
+        "max_depth": 1,
+        "reg_lambda": 7
+    },
+    {
+        "colsample_bytree": 8,
+        "eta": 4,
+        "max_depth": 7,
+        "reg_lambda": 1
+    }
+]

@@ -1,0 +1,35 @@
+{
+    "RandomForest": {
+        "max_depth": ["int", "linear", [1, 15]],
+        "max_features": ["float", "logit", [0.01, 0.99]],
+        "min_impurity_decrease": ["float", "linear", [0.0, 0.5]],
+        "min_samples_leaf": ["float", "logit", [0.01, 0.49]],
+        "min_samples_split": ["float", "logit", [0.01, 0.99]],
+        "min_weight_fraction_leaf": ["float", "logit", [0.01, 0.49]]
+    },
+    "DecisionTree": {
+        "max_depth": ["int", "linear", [1, 15]],
+        "max_features": ["float", "logit", [0.01, 0.99]],
+        "min_impurity_decrease": ["float", "linear", [0.0, 0.5]],
+        "min_samples_leaf": ["float", "logit", [0.01, 0.49]],
+        "min_samples_split": ["float", "logit", [0.01, 0.99]],
+        "min_weight_fraction_leaf": ["float", "logit", [0.01, 0.49]]
+    },
+    "SVM": {
+        "C": ["float", "log", [1, 1e3]],
+        "gamma": ["float", "log", [1e-4, 1e-3]],
+        "tol": ["float", "log", [1e-5, 1e-1]]
+    },
+    "AdaBoost": {
+        "n_estimators": ["int", "linear", [10, 100]],
+        "learning_rate": ["float", "log", [1e-4, 1e1]]
+    },
+    "MLP_SGD": {
+        "hidden_layer_sizes": ["int", "linear", [50, 200]],
+        "alpha": ["float", "log", [1e-5, 1e1]],
+        "batch_size": ["int", "linear", [10, 250]],
+        "learning_rate_init": ["float", "log", [1e-5, 1e-1]],
+        "power_t": ["float", "logit", [0.1, 0.9]],
+        "momentum": ["float", "logit", [0.001, 0.999]]
+    }
+}
