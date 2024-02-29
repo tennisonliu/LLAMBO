@@ -69,11 +69,13 @@ To reproduce results, execute any of the shell experimental shell scripts:
 - To evaluate candidate point sampler: ```run_evaluate_sampling.sh```
 - To evaluate prompt ablations: ```run_prompt_ablation.sh```
 
+Note: please follow [HPOBench instructions](./hpo_bench/README.md) to download data files for HPOBench experiments.
+
 ---
 
 ## 3. Using LLAMBO for Your BO Tasks
 
-TODO: add brief tutorial or example script
+Refer to ```tutorial.ipynb``` for brief tutorial on how to run LLAMBO on your own BO tasks.
 
 
 ---
