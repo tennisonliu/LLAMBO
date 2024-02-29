@@ -14,5 +14,3 @@ do
         sleep 60
     done
 done
-
-# clear && nohup ./run_bayesmark_public.sh > output.log 2>&1 &

@@ -14,5 +14,3 @@ do
         python3 exp_hpo_bench/run_hpo_bench.py --dataset $dataset --model $model --seed 0 --num_seeds 1 --engine $ENGINE --sm_mode discriminative
     done
 done
-
-# clear && nohup ./run_hpo_bench.sh > output.log 2>&1 &
