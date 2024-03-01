@@ -43,9 +43,6 @@ def fit_and_predict_with_GP(hp_constraints, X_train, y_train, X_test):
     # kernel is based on default used here: 
     # https://scikit-optimize.github.io/stable/modules/generated/skopt.gp_minimize.html
     # length_scale = 1 since we have standardized the data, \nu=2.5 is good heuristic starting point
-    # constant kernel is used to model the mean function, allow non-centered mean
-
-    # kernel = ConstantKernel() * MaternKernel(length_scale=1.0, nu=2.5)
     kernel = ProductKernel(ConstantKernel(), MaternKernel(length_scale=1.0, nu=2.5))
 
     if X_train.shape[0] > 10:
@@ -104,8 +101,6 @@ def fit_and_predict_with_SMAC(hp_constraints, X_train, y_train, X_test):
 
 def custom_gamma(x: int) -> int:
     return min(int(np.ceil(0.25 * x)), 25)
-
-# assert custom_gamma(3) == 1, 'gamma ratio incorrect'
 
 
 def fit_and_predict_with_TPE(hp_constraints, X_train, y_train, X_test, top_pct, multivariate, lower_is_better):

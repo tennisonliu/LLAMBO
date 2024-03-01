@@ -1,5 +1,3 @@
-# import sys
-# sys.path.append('/home/tl522/bo_llm')
 import os
 import argparse
 import json
@@ -17,7 +15,6 @@ from sklearn.metrics import get_scorer
 from sklearn.metrics import mean_squared_error, r2_score
 from uncertainty_toolbox import metrics_calibration as cal
 from exp_evaluate_sm.evaluate_sm_utils import fit_and_predict_with_GP, fit_and_predict_with_SMAC
-# switch off future warnings
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 optuna.logging.set_verbosity(optuna.logging.WARNING)

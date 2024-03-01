@@ -15,7 +15,6 @@ from llambo.rate_limiter import RateLimiter
 from sklearn.metrics import get_scorer
 from sklearn.metrics import mean_squared_error, r2_score
 from uncertainty_toolbox import metrics_calibration as cal
-# switch off future warnings
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 optuna.logging.set_verbosity(optuna.logging.WARNING)

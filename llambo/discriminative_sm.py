@@ -127,7 +127,6 @@ class LLM_DIS_SM:
         tot_tokens = 0
         tot_cost = 0
 
-        # prompt_template = all_prompt_templates[0]       # select just one fixed template
         bool_pred_returned = []
 
         # make predictions in chunks of 5, for each chunk make concurent calls
@@ -236,9 +235,6 @@ class LLM_DIS_SM:
 
     def select_query_point(self, observed_configs, observed_fvals, candidate_configs):
         '''Select the next query point using expected improvement.'''
-        ## TODO: fix warping
-        # observed_configs = self._warp_candidate_points(observed_configs)
-        # candidate_configs = self._warp_candidate_points(candidate_configs)
 
         # warp
         if self.warping_transformer is not None:
@@ -259,9 +255,6 @@ class LLM_DIS_SM:
         ei = np.where(y_std>0, delta * norm.cdf(Z) + y_std * norm.pdf(Z), 0)
 
         best_point_index = np.argmax(ei)
-
-        # TODO: fix unwarping
-        # candidate_configs = self._unwarp_candidate_points(candidate_configs)
 
         # unwarp
         if self.warping_transformer is not None:

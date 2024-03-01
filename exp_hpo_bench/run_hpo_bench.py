@@ -46,7 +46,7 @@ class HPOExpRunner:
     def __init__(self, model, dataset, seed):
         self.hpo_bench = HPOBench(model, dataset)
         self.seed = seed
-        self.config_path = f'/home/tl522/llambo/bo_llm/hpo_bench/configs/{model}/config{seed}.json'
+        self.config_path = f'hpo_bench/configs/{model}/config{seed}.json'
     
     def generate_initialization(self, n_samples):
         '''

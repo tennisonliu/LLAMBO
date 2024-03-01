@@ -1,5 +1,3 @@
-# import sys
-# sys.path.append('/home/tl522/bo_llm')
 import os
 import argparse
 import json
@@ -14,7 +12,6 @@ from llambo.acquisition_function import LLM_ACQ
 from llambo.rate_limiter import RateLimiter
 from exp_evaluate_sampling.evaluate_sampling_utils import sample_from_TPESampler, sample_from_RandomSampler, sample_from_GP
 from exp_evaluate_sampling.metrics_utils import calculate_mahalanobis_dist, calculate_gen_var, calculate_loglikelihood
-# switch off future warnings
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 optuna.logging.set_verbosity(optuna.logging.ERROR)

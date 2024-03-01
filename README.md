@@ -45,7 +45,7 @@ git clone https://github.com/tennisonliu/llambo.git
 conda create -n llambo python=3.8.8
 conda install jupyter
 conda activate llambo
-# Note: {project_dir} is the path to where to your local directory
+## Note: {project_dir} is the path to where to your local directory
 export PROJECT_DIR={project_dir}
 conda env config vars set PYTHONPATH=${PYTHONPATH}:${PROJECT_DIR}
 conda env config vars set PROJECT_DIR=${PROJECT_DIR}
@@ -67,7 +67,7 @@ To reproduce results, execute any of the shell experimental shell scripts:
 - To run HPOBench benchmark: ```run_hpo_bench.sh```
 - To evaluate the surrogate model: ```run_evaluate_dis_sm.sh``` (discriminative SM) or ```run_evaluate_gen_sm.sh``` (generative SM)
 - To evaluate candidate point sampler: ```run_evaluate_sampling.sh```
-- To evaluate prompt ablations: ```run_prompt_ablation.sh```
+- To execute prompt ablations: ```run_prompt_ablation.sh```
 
 Note: please follow [HPOBench instructions](./hpo_bench/README.md) to download data files for HPOBench experiments.
 
