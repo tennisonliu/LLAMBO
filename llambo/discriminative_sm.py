@@ -1,19 +1,20 @@
 import os
 import time
-import openai
+# import openai
 import asyncio
 import re
 import numpy as np
+from openai import AsyncOpenAI
 from scipy.stats import norm
 from aiohttp import ClientSession
 from llambo.rate_limiter import RateLimiter
 from llambo.discriminative_sm_utils import gen_prompt_tempates
 
 
-openai.api_type = os.environ["OPENAI_API_TYPE"]
-openai.api_version = os.environ["OPENAI_API_VERSION"]
-openai.api_base = os.environ["OPENAI_API_BASE"]
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# openai.api_type = os.environ["OPENAI_API_TYPE"]
+# openai.api_version = os.environ["OPENAI_API_VERSION"]
+# openai.api_base = os.environ["OPENAI_API_BASE"]
+# openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
 class LLM_DIS_SM:
@@ -57,47 +58,39 @@ class LLM_DIS_SM:
         user_message = few_shot_template.format(Q=query_example['Q'])
         message.append({"role": "user", "content": user_message})
 
-        MAX_RETRIES = 3
 
-        async with ClientSession(trust_env=True) as session:
-            openai.aiosession.set(session)
-
+        async with AsyncOpenAI(
+            # This is the default and can be omitted
+            api_key=os.environ.get("OPENAI_API_KEY"),
+            max_retries=3,
+            timeout=3,
+        ) as client:
             resp = None
             n_preds = int(self.n_gens/self.n_templates) if self.bootstrapping else int(self.n_gens)
-            for retry in range(MAX_RETRIES):
-                try:
-                    start_time = time.time()
-                    self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-                    resp = await openai.ChatCompletion.acreate(
-                        engine=self.chat_engine,
-                        messages=message,
-                        temperature=0.7,
-                        max_tokens=8,
-                        top_p=0.95,
-                        n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
-                        request_timeout=10
-                    )
-                    self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=time.time())
-                    break
-                except Exception as e:
-                    print(f'[SM] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
-                    print(resp)
-                    if retry == MAX_RETRIES-1:
-                        await openai.aiosession.get().close()
-                        raise e
-                    pass
+            try:
+                self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
+                resp = await client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=message,
+                    temperature=0.7,
+                    max_tokens=8,
+                    top_p=0.95,
+                    n=max(n_preds, 3),            # e.g. for 5 templates, get 2 generations per template
+                )
+                self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
+            except Exception as e:
+                raise e
+                # print(resp)
+                # print(e)
 
-        await openai.aiosession.get().close()
 
         if resp is None:
-            return None
+            raise Exception('Response is None')
 
-        tot_tokens = resp['usage']['total_tokens']
-        tot_cost = 0.0015*(resp['usage']['prompt_tokens']/1000) + 0.002*(resp['usage']['completion_tokens']/1000)
+        tot_tokens = resp.usage.total_tokens
+        tot_cost = 0.0015*(resp.usage.prompt_tokens/1000) + 0.002*(resp.usage.completion_tokens/1000)
 
         return query_idx, resp, tot_cost, tot_tokens
-
-
 
     async def _generate_concurrently(self, few_shot_templates, query_examples):
         '''Perform concurrent generation of responses from the LLM async.'''
@@ -111,16 +104,20 @@ class LLM_DIS_SM:
 
         results = [[] for _ in range(len(query_examples))]      # nested list
 
+        # try:
         llm_response = await asyncio.gather(*tasks)
+        # except Exception as e:
+            # raise e
 
         for response in llm_response:
             if response is not None:
+                # print(f"Query_ID: {query_idx}, \n Response: {response}")
                 query_idx, resp, tot_cost, tot_tokens = response
                 results[query_idx].append([resp, tot_cost, tot_tokens])
 
         return results  # format [(resp, tot_cost, tot_tokens), None, (resp, tot_cost, tot_tokens)]
 
-    
+
     async def _predict(self, all_prompt_templates, query_examples):
         start = time.time()
         all_preds = []
@@ -140,14 +137,13 @@ class LLM_DIS_SM:
                     sample_preds = [np.nan] * self.n_gens
                 else:
                     sample_preds = []
-                    all_gens_text = [x['message']['content'] for template_response in sample_response for x in template_response[0]['choices'] ]        # fuarr this is some high level programming
+                    all_gens_text = [x.message.content for template_response in sample_response for x in template_response[0].choices ]        # fuarr this is some high level programming
                     for gen_text in all_gens_text:
                         gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
                         if len(gen_pred) == 1:
                             sample_preds.append(float(gen_pred[0]))
                         else:
                             sample_preds.append(np.nan)
-                            
                     while len(sample_preds) < self.n_gens:
                         sample_preds.append(np.nan)
 
@@ -201,8 +197,8 @@ class LLM_DIS_SM:
                                                                     shuffle_features=self.shuffle_features, apply_warping=self.apply_warping)
 
         print('*'*100)
-        print(f'Number of all_prompt_templates: {len(all_prompt_templates)}')
-        print(f'Number of query_examples: {len(query_examples)}')
+        print(f'[discriminative_sm.py] Number of all_prompt_templates: {len(all_prompt_templates)}')
+        print(f'[discriminative_sm.py] Number of query_examples: {len(query_examples)}')
         print(all_prompt_templates[0].format(Q=query_examples[0]['Q']))
 
         response = await self._predict(all_prompt_templates, query_examples)
