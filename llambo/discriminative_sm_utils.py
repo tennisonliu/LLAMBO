@@ -80,9 +80,9 @@ def prepare_configurations(
 
             else:
                 if hyp_type == 'int':
-                    row_string += str(int(row[i]))
+                    row_string += str(int(row.iloc[i]))
                 elif hyp_type == 'float':
-                    row_string += f'{row[i]:.{n_dp}f}'
+                    row_string += f'{row.iloc[i]:.{n_dp}f}'
                 elif hyp_type == 'ordinal':
                     row_string += f'{row[i]:.{n_dp}f}'
                 else:

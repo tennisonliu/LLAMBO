@@ -2,19 +2,20 @@ import os
 import random
 import math
 import time
-import openai
+# import openai
 import asyncio
 import numpy as np
 import pandas as pd
+from openai import AsyncOpenAI
 from aiohttp import ClientSession
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
 from llambo.rate_limiter import RateLimiter
 
-openai.api_type = os.environ["OPENAI_API_TYPE"]
-openai.api_version = os.environ["OPENAI_API_VERSION"]
-openai.api_base = os.environ["OPENAI_API_BASE"]
-openai.api_key = os.environ["OPENAI_API_KEY"]
+# openai.api_type = os.environ["OPENAI_API_TYPE"]
+# openai.api_version = os.environ["OPENAI_API_VERSION"]
+# openai.api_base = os.environ["OPENAI_API_BASE"]
+# openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
 class LLM_ACQ:
@@ -122,7 +123,8 @@ class LLM_ACQ:
                     else:
                         lower_bound = self.task_context['hyperparameter_constraints'][hyperparameter_names[i]][2][1]
                     n_dp = self._count_decimal_places(lower_bound)
-                    value = row[i]
+                    # value = row[i]
+                    value = row.iloc[i]
                     if self.apply_warping:
                         if hyp_type == 'int' and hyp_transform != 'log':
                             row_string += str(int(value))
@@ -281,48 +283,46 @@ Hyperparameter configuration:"""
             all_query_templates.append(query_examples)
 
         return all_prompt_templates, all_query_templates
-    
+
     async def _async_generate(self, user_message):
         '''Generate a response from the LLM async.'''
         message = []
         message.append({"role": "system","content": "You are an AI assistant that helps people find information."})
         message.append({"role": "user", "content": user_message})
 
-        MAX_RETRIES = 3
 
-        async with ClientSession(trust_env=True) as session:
-            openai.aiosession.set(session)
-
+        async with AsyncOpenAI(
+            # This is the default and can be omitted
+            api_key=os.environ.get("OPENAI_API_KEY"),
+            max_retries=3,
+            timeout=3,
+        ) as client:
             resp = None
-            for retry in range(MAX_RETRIES):
-                try:
-                    start_time = time.time()
-                    self.rate_limiter.add_request(request_text=user_message, current_time=start_time)
-                    resp = await openai.ChatCompletion.acreate(
-                        engine=self.chat_engine,
-                        messages=message,
-                        temperature=0.8,
-                        max_tokens=500,
-                        top_p=0.95,
-                        n=self.n_gens,
-                        request_timeout=10
-                    )
-                    self.rate_limiter.add_request(request_token_count=resp['usage']['total_tokens'], current_time=start_time)
-                    break
-                except Exception as e:
-                    print(f'[AF] RETRYING LLM REQUEST {retry+1}/{MAX_RETRIES}...')
-                    print(resp)
-                    print(e)
+            try:
+                self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
+                resp = await client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=message,
+                    temperature=0.8,
+                    max_tokens=500,
+                    top_p=0.95,
+                    n=self.n_gens,
+                )
+                self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
+            except Exception as e:
+                raise e
+                # print(resp)
+                # print(e)
 
-        await openai.aiosession.get().close()
 
         if resp is None:
-            return None
+            raise Exception('Response is None')
 
-        tot_tokens = resp['usage']['total_tokens']
-        tot_cost = 0.0015*(resp['usage']['prompt_tokens']/1000) + 0.002*(resp['usage']['completion_tokens']/1000)
+        tot_tokens = resp.usage.total_tokens
+        tot_cost = 0.0015*(resp.usage.prompt_tokens/1000) + 0.002*(resp.usage.completion_tokens/1000)
 
         return resp, tot_cost, tot_tokens
+
 
 
     async def _async_generate_concurrently(self, prompt_templates, query_templates):
@@ -340,7 +340,10 @@ Hyperparameter configuration:"""
 
         results = [None]*len(coroutines)
 
+        # try:
         llm_response = await asyncio.gather(*tasks)
+        # except Exception as e:
+            # raise e
 
         for idx, response in enumerate(llm_response):
             if response is not None:
@@ -466,9 +469,9 @@ Hyperparameter configuration:"""
         prompt_templates, query_templates = self._gen_prompt_tempates_acquisitions(observed_configs, observed_fvals, desired_fval, n_prompts=self.n_templates, use_context=use_context, use_feature_semantics=use_feature_semantics, shuffle_features=self.shuffle_features)
 
         print('='*100)
-        print('EXAMPLE ACQUISITION PROMPT')
-        print(f'Length of prompt templates: {len(prompt_templates)}')
-        print(f'Length of query templates: {len(query_templates)}')
+        print('[acquisition_function.py] EXAMPLE ACQUISITION PROMPT')
+        print(f'[acquisition_function.py] Length of prompt templates: {len(prompt_templates)}')
+        print(f'[acquisition_function.py] Length of query templates: {len(query_templates)}')
         print(prompt_templates[0].format(A=query_templates[0][0]['A']))
         print('='*100)
 
@@ -487,12 +490,13 @@ Hyperparameter configuration:"""
                 if response is None:
                     continue
                 # loop through n_gen responses
-                for response_message in response[0]['choices']:
-                        response_content = response_message['message']['content']
+                for response_message in response[0].choices:
+                        response_content = response_message.message.content
                         try:
                             response_content = response_content.split('##')[1].strip()
                             candidate_points.append(self._convert_to_json(response_content))
                         except:
+                            print('[acquisition_function.py]')
                             print(response_content)
                             continue
                 tot_cost += response[1]
@@ -502,8 +506,8 @@ Hyperparameter configuration:"""
             filtered_candidate_points = pd.concat([filtered_candidate_points, proposed_points], ignore_index=True)
             number_candidate_points = filtered_candidate_points.shape[0]
 
-            print(f'Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, ',
-                  f'number of accepted candidate points: {filtered_candidate_points.shape[0]}')
+            print(f'[acquisition_function.py] Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, ',
+                f'[acquisition_function.py] number of accepted candidate points: {filtered_candidate_points.shape[0]}')
 
 
             retry += 1
