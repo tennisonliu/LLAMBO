@@ -51,7 +51,7 @@ class LLAMBO:
         else:
             warping_transformer = None
 
-        rate_limiter = RateLimiter(max_tokens=100000, time_frame=60, max_requests=720)
+        rate_limiter = RateLimiter(max_tokens=200000, time_frame=60, max_requests=1440)
         
         print('='*150)
         print(f'[Search settings]: ' + '\n\t'

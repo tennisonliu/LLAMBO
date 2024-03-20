@@ -10,6 +10,10 @@ ENGINE="gpt35turbo_20230727"
 for dataset in "digits" "wine" "diabetes" "iris" "breast"
 do
     for model in "RandomForest" "SVM" "DecisionTree" "MLP_SGD" "AdaBoost"
+    # for model in "SVM" "DecisionTree" "MLP_SGD" "AdaBoost"
+    # for model in "DecisionTree" "MLP_SGD" "AdaBoost"
+    # for model in "MLP_SGD" "AdaBoost"
+    # for model in "AdaBoost"
     do
         python3 exp_bayesmark/run_bayesmark.py --dataset $dataset --model $model --num_seeds 1 --sm_mode discriminative --engine $ENGINE
         sleep 60

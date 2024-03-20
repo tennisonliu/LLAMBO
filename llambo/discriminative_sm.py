@@ -5,11 +5,12 @@ import asyncio
 import re
 import numpy as np
 from openai import AsyncOpenAI
+from ollama import AsyncClient as AsyncOllamaClient
 from scipy.stats import norm
 from aiohttp import ClientSession
 from llambo.rate_limiter import RateLimiter
 from llambo.discriminative_sm_utils import gen_prompt_tempates
-
+from llambo.warping import DictToObject
 
 # openai.api_type = os.environ["OPENAI_API_TYPE"]
 # openai.api_version = os.environ["OPENAI_API_VERSION"]
@@ -47,11 +48,12 @@ class LLM_DIS_SM:
         self.verbose = verbose
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
-
+        # self.provider = 'openai'
+        self.provider = 'ollama'
         assert type(self.shuffle_features) == bool, 'shuffle_features must be a boolean'
 
 
-    async def _async_generate(self, few_shot_template, query_example, query_idx):
+    async def _async_generate_oai(self, few_shot_template, query_example, query_idx):
         '''Generate a response from the LLM async.'''
         message = []
         message.append({"role": "system","content": "You are an AI assistant that helps people find information."})
@@ -92,13 +94,55 @@ class LLM_DIS_SM:
 
         return query_idx, resp, tot_cost, tot_tokens
 
+
+    async def _async_generate_ollama(self, few_shot_template, query_example, query_idx):
+        '''Generate a response from the LLM async.'''
+        message = []
+        message.append({"role": "system","content": "You are an AI assistant that helps people find information."})
+        user_message = few_shot_template.format(Q=query_example['Q'])
+        message.append({"role": "user", "content": user_message})
+
+        resp = None
+        try:
+            # self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
+            resp = await AsyncOllamaClient().chat(
+                model="llama2:13b",
+                messages=message,
+                options={
+                    "temperature": 0.7,
+                    "num_predict": 8,
+                    "top_p": 0.95,
+                }
+            )
+            # self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
+        except Exception as e:
+            raise e
+
+
+        if resp is None:
+            raise Exception('Response is None')
+
+        resp = DictToObject(resp)
+
+        tot_tokens = resp.eval_count
+        tot_cost = 0.0015*(resp.eval_count/1000) + 0.002*(resp.eval_count/1000)
+
+        return query_idx, resp, tot_cost, tot_tokens
+
+
     async def _generate_concurrently(self, few_shot_templates, query_examples):
         '''Perform concurrent generation of responses from the LLM async.'''
 
         coroutines = []
         for template in few_shot_templates:
-            for query_idx, query_example in enumerate(query_examples):
-                coroutines.append(self._async_generate(template, query_example, query_idx))
+            if self.provider == 'openai':
+                for query_idx, query_example in enumerate(query_examples):
+                    coroutines.append(self._async_generate_oai(template, query_example, query_idx))
+            elif self.provider == 'ollama':
+                for query_idx, query_example in enumerate(query_examples):
+                    coroutines.append(self._async_generate_ollama(template, query_example, query_idx))
+            else:
+                raise ValueError('Invalid provider')
 
         tasks = [asyncio.create_task(c) for c in coroutines]
 
@@ -136,21 +180,39 @@ class LLM_DIS_SM:
                 if not sample_response:     # if sample prediction is an empty list :(
                     sample_preds = [np.nan] * self.n_gens
                 else:
-                    sample_preds = []
-                    all_gens_text = [x.message.content for template_response in sample_response for x in template_response[0].choices ]        # fuarr this is some high level programming
-                    for gen_text in all_gens_text:
-                        gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
-                        if len(gen_pred) == 1:
-                            sample_preds.append(float(gen_pred[0]))
-                        else:
+                    if self.provider == 'openai':
+                        sample_preds = []
+                        all_gens_text = [x.message.content for template_response in sample_response for x in template_response[0].choices ]        # fuarr this is some high level programming
+                        for gen_text in all_gens_text:
+                            gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
+                            if len(gen_pred) == 1:
+                                sample_preds.append(float(gen_pred[0]))
+                            else:
+                                sample_preds.append(np.nan)
+                        while len(sample_preds) < self.n_gens:
                             sample_preds.append(np.nan)
-                    while len(sample_preds) < self.n_gens:
-                        sample_preds.append(np.nan)
 
-                    tot_cost += sum([x[1] for x in sample_response])
-                    tot_tokens += sum([x[2] for x in sample_response])
+                        tot_cost += sum([x[1] for x in sample_response])
+                        tot_tokens += sum([x[2] for x in sample_response])
+                    elif self.provider == 'ollama':
+                        sample_preds = []
+                        all_gens_text = [x[0].message.content for x in sample_response]
+                        # print('*'*100)
+                        # print('all_gens_text:', all_gens_text)
+                        # print('*'*100)
+                        for gen_text in all_gens_text:
+                            gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
+                            if len(gen_pred) == 1:
+                                sample_preds.append(float(gen_pred[0]))
+                            else:
+                                sample_preds.append(np.nan)
+                        while len(sample_preds) < self.n_gens:
+                            sample_preds.append(np.nan)
+
+                        tot_cost += sum([x[1] for x in sample_response])
+                        tot_tokens += sum([x[2] for x in sample_response])
                 all_preds.append(sample_preds)
-        
+
         end = time.time()
         time_taken = end - start
 

@@ -7,16 +7,16 @@ import asyncio
 import numpy as np
 import pandas as pd
 from openai import AsyncOpenAI
+from ollama import AsyncClient as AsyncOllamaClient
 from aiohttp import ClientSession
 from langchain import FewShotPromptTemplate
 from langchain import PromptTemplate
 from llambo.rate_limiter import RateLimiter
+from llambo.warping import DictToObject
+import logging
 
-# openai.api_type = os.environ["OPENAI_API_TYPE"]
-# openai.api_version = os.environ["OPENAI_API_VERSION"]
-# openai.api_base = os.environ["OPENAI_API_BASE"]
-# openai.api_key = os.environ["OPENAI_API_KEY"]
 
+logger = logging.getLogger(__name__)
 
 class LLM_ACQ:
     def __init__(self, task_context, n_candidates, n_templates, lower_is_better, 
@@ -30,7 +30,7 @@ class LLM_ACQ:
         self.lower_is_better = lower_is_better
         self.apply_jitter = jitter
         if rate_limiter is None:
-            self.rate_limiter = RateLimiter(max_tokens=40000, time_frame=60)
+            self.rate_limiter = RateLimiter(max_tokens=200000, time_frame=60)
         else:
             self.rate_limiter = rate_limiter
         if warping_transformer is None:
@@ -42,6 +42,8 @@ class LLM_ACQ:
         self.chat_engine = chat_engine
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
+        # self.provider = 'openai'
+        self.provider = 'ollama'
 
         assert type(self.shuffle_features) == bool, 'shuffle_features must be a boolean'
 
@@ -284,7 +286,7 @@ Hyperparameter configuration:"""
 
         return all_prompt_templates, all_query_templates
 
-    async def _async_generate(self, user_message):
+    async def _async_generate_oai(self, user_message):
         '''Generate a response from the LLM async.'''
         message = []
         message.append({"role": "system","content": "You are an AI assistant that helps people find information."})
@@ -323,14 +325,51 @@ Hyperparameter configuration:"""
 
         return resp, tot_cost, tot_tokens
 
+    async def _async_generate_ollama(self, user_message):
+        '''Generate a response from the LLM async.'''
+        message = []
+        message.append({"role": "system","content": "You are an AI assistant that helps people find information. Please give direct response and no detailed explanation."})
+        message.append({"role": "user", "content": user_message})
 
+        resp = None
+        try:
+            # self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
+            resp = await AsyncOllamaClient().chat(
+                model="llama2:13b",
+                messages=message,
+                options={
+                    "temperature": 0.8,
+                    "top_p": 0.95,
+                }
+            )
+            # self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
+        except Exception as e:
+            raise e
+
+
+        if resp is None:
+            raise Exception('Response is None')
+
+        resp = DictToObject(resp)
+
+        print(f'[acquisition_function.py:355] Response: {resp.message.content}')
+
+        tot_tokens = resp.eval_count
+        tot_cost = 0.0015*(resp.eval_count/1000) + 0.002*(resp.eval_count/1000)
+
+        return resp, tot_cost, tot_tokens
 
     async def _async_generate_concurrently(self, prompt_templates, query_templates):
         '''Perform concurrent generation of responses from the LLM async.'''
 
         coroutines = []
         for (prompt_template, query_template) in zip(prompt_templates, query_templates):
-            coroutines.append(self._async_generate(prompt_template.format(A=query_template[0]['A'])))
+            if self.provider == 'openai':
+                coroutines.append(self._async_generate_oai(prompt_template.format(A=query_template[0]['A'])))
+            elif self.provider == 'ollama':
+                coroutines.append(self._async_generate_ollama(prompt_template.format(A=query_template[0]['A'])))
+            else:
+                raise Exception('Unknown provider')
 
         # coroutines = [self._async_generate(prompt_template.format(A=query_example['A'])) for prompt_template in prompt_templates]
         tasks = [asyncio.create_task(c) for c in coroutines]
@@ -490,15 +529,27 @@ Hyperparameter configuration:"""
                 if response is None:
                     continue
                 # loop through n_gen responses
-                for response_message in response[0].choices:
-                        response_content = response_message.message.content
-                        try:
-                            response_content = response_content.split('##')[1].strip()
-                            candidate_points.append(self._convert_to_json(response_content))
-                        except:
-                            print('[acquisition_function.py]')
-                            print(response_content)
-                            continue
+                if self.provider == 'openai':
+                    for response_message in response[0].choices:
+                            response_content = response_message.message.content
+                            try:
+                                response_content = response_content.split('##')[1].strip()
+                                candidate_points.append(self._convert_to_json(response_content))
+                            except:
+                                print('[acquisition_function.py]')
+                                print(response_content)
+                                continue
+                elif self.provider == 'ollama':
+                    response_content = response[0].message.content
+                    try:
+                        response_content = response_content.split('##')[1].strip()
+                        candidate_points.append(self._convert_to_json(response_content))
+                    except:
+                        print('[acquisition_function.py]')
+                        print(response_content)
+                        continue
+                else:
+                    raise Exception('Unknown provider')
                 tot_cost += response[1]
                 tot_tokens += response[2]
 
@@ -511,7 +562,8 @@ Hyperparameter configuration:"""
 
 
             retry += 1
-            if retry > 3:
+            MAX_RETRY = 5
+            if retry > MAX_RETRY:
                 print(f'Desired fval: {desired_fval:.6f}')
                 print(f'Number of proposed candidate points: {len(candidate_points)}')
                 print(f'Number of accepted candidate points: {filtered_candidate_points.shape[0]}')

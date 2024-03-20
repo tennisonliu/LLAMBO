@@ -35,3 +35,14 @@ class NumericalTransformer:
                     assert type in ['int', 'float']
                     config_[col] = 10 ** config_[col]
         return config_
+
+
+class DictToObject:
+    def __init__(self, dictionary):
+        self.attrs = []
+        for key, value in dictionary.items():
+            if isinstance(value, dict):
+                # If the value is a dictionary, recursively convert it to an object
+                value = DictToObject(value)
+            setattr(self, key, value)
+            self.attrs.append(key)
