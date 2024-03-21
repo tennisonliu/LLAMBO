@@ -7,7 +7,7 @@ if __name__ == "__main__":
         if sub_dir.is_dir():
             for sub_sub_dir in sub_dir.iterdir():
                 for file in sub_sub_dir.iterdir():
-                    if 'diabetes' in str(file):
+                    if 'Offset' in str(file):
                         if file.suffix == ".pickle":
                             with open(file, "rb") as f:
                                 data = pickle.load(f)
