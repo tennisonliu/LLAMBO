@@ -129,9 +129,24 @@ def run_bayesmark(list_model, list_data, list_metric, all_dict_templates, n_repe
                     print('metric', this_metric, 'dataloader', this_loader, 'this_model', this_model)
                     smc_object                   =  SklearnModelCustom(this_model, this_loader, this_metric)
                     path_name                    =  smc_object.path_name
-                    config_space, order_list     =  smc_object.get_config_space()    
+                    config_space, order_list     =  smc_object.get_config_space()
                     fun_to_evaluate              =  smc_object.obtain_evaluate(smc_object.evaluate)
                     run_all_models(fun_to_evaluate, all_dict_templates, n_repetitions, n_runs, n_init, config_space, order_list, path_name)
+
+
+# Function to run the Bayesian optimization process for models evaluated with Bayesmark
+def run_custom(list_model, list_data, list_metric, all_dict_templates, n_repetitions, n_runs, n_init):
+        from bayesmark.sklearn_funcs import SklearnModelCustom
+        for this_metric in list_metric:
+            for this_loader in list_data:
+                for this_model in list_model:
+                    print('metric', this_metric, 'dataloader', this_loader, 'this_model', this_model)
+                    smc_object                   =  SklearnModelCustom(this_model, this_loader, this_metric)
+                    path_name                    =  smc_object.path_name
+                    config_space, order_list     =  smc_object.get_config_space()
+                    fun_to_evaluate              =  smc_object.obtain_evaluate(smc_object.evaluate)
+                    run_all_models(fun_to_evaluate, all_dict_templates, n_repetitions, n_runs, n_init, config_space, order_list, path_name)
+
 
 # Function to run the Bayesian optimization process for models evaluated with Bayesmark
 def run_tabular(list_model, list_data, all_dict_templates, n_repetitions, n_runs, n_init):

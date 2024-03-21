@@ -23,3 +23,4 @@ torch
 uncertainty_toolbox
 pynisher
 numpy
+rich

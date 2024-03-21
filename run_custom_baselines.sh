@@ -1,0 +1,1 @@
+python3 exp_baselines/run_all_baselines.py --run_config custom_reg

@@ -1,0 +1,22 @@
+[
+    {
+        "n_estimators": 42,
+        "learning_rate": 0.0006219073574834002
+    },
+    {
+        "n_estimators": 87,
+        "learning_rate": 0.19666437432641068
+    },
+    {
+        "n_estimators": 20,
+        "learning_rate": 0.011059250487644464
+    },
+    {
+        "n_estimators": 65,
+        "learning_rate": 3.497242075528438
+    },
+    {
+        "n_estimators": 76,
+        "learning_rate": 0.04663647261180513
+    }
+]

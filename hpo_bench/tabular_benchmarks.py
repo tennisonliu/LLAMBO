@@ -133,7 +133,7 @@ class HPOBench(AbstractBench):
         time_final = time.time()
         test_info['generalization_score'] = test_info['acc']
         test_info['time_init']  = time_init
-        test_info['time_final'] = time_final 
+        test_info['time_final'] = time_final
         test_info['score'] = loss
         # return loss, test_info
         return test_info

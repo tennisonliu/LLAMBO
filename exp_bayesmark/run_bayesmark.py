@@ -11,15 +11,11 @@ from llambo.llambo import LLAMBO
 from bayesmark.bbox_utils import get_bayesmark_func
 from sklearn.metrics import get_scorer
 from sklearn.model_selection import cross_val_score
+from llambo.warping import setup_logging
 
 logger = logging.getLogger(__name__)
 
-def setup_logging(log_name):
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler(log_name, mode='w')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.INFO)
+
 
 BAYESMARK_TASK_MAP = {
     'breast': ['classification', 'accuracy'],
@@ -118,6 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_seeds', type=int)
     parser.add_argument('--engine', type=str) # temporary fix to run multiple in parallel
     parser.add_argument('--sm_mode', type=str)
+    parser.add_argument('--provider', type=str, default='ollama')
 
     args = parser.parse_args()
     dataset = args.dataset
@@ -125,6 +122,7 @@ if __name__ == '__main__':
     num_seeds =args.num_seeds
     chat_engine = args.engine
     sm_mode = args.sm_mode
+    provider = args.provider
 
     assert sm_mode in ['discriminative', 'generative']
     if sm_mode == 'generative':
@@ -172,28 +170,28 @@ if __name__ == '__main__':
 
     # define result save directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_res_dir = f'{script_dir}/results_{sm_mode}/{dataset}/{model}'
+    save_res_dir = f'{script_dir}/{provider}/{chat_engine}/results_{sm_mode}/{dataset}/{model}'
     if not os.path.exists(save_res_dir):
         os.makedirs(save_res_dir)
     # define logging directory
-    logging_fpath = f'{script_dir}/logs_{sm_mode}/{dataset}/{model}.log'
+    logging_fpath = f'{script_dir}/{provider}/{chat_engine}/logs_{sm_mode}/{dataset}/{model}.log'
     if not os.path.exists(os.path.dirname(logging_fpath)):
         os.makedirs(os.path.dirname(logging_fpath))
-    setup_logging(logging_fpath)
+    setup_logging(logger, logging_fpath)
 
     tot_llm_cost = 0
     for seed in range(num_seeds):
-        logger.info('='*200)
-        logger.info(f'Executing LLAMBO ({sm_mode} | top_pct: {top_pct}) to tune {model} on {dataset} with seed {seed+1} / {num_seeds}...')
+        logger.info('='*80)
+        logger.info(f'Executing LLAMBO ({sm_mode} | {provider} | {chat_engine} | top_pct: {top_pct}) to tune {model} on {dataset} with seed {seed+1} / {num_seeds}...')
         logger.info(f'Task context: {task_context}')
 
 
         benchmark = BayesmarkExpRunner(task_context, data, seed)
 
         # instantiate LLAMBO
-        llambo = LLAMBO(task_context, sm_mode, n_candidates=10, n_templates=2, n_gens=10, 
+        llambo = LLAMBO(task_context, sm_mode, n_candidates=10, n_templates=2, n_gens=10,
                         alpha=0.1, n_initial_samples=5, n_trials=25, init_f=benchmark.generate_initialization,
-                        bbox_eval_f=benchmark.evaluate_point, chat_engine=chat_engine, top_pct=top_pct)
+                        bbox_eval_f=benchmark.evaluate_point, chat_engine=chat_engine, top_pct=top_pct, logger=logger, provider=provider)
         llambo.seed = seed
         configs, fvals = llambo.optimize()
 
@@ -206,7 +204,6 @@ if __name__ == '__main__':
         search_history = pd.concat([configs, fvals], axis=1)
         search_history.to_csv(f'{save_res_dir}/{seed}.csv', index=False)
 
-        
         logger.info(search_history)
         logger.info(f'[LLAMBO] RUN COMPLETE, saved results to {save_res_dir}...')
 
@@ -220,5 +217,5 @@ if __name__ == '__main__':
         with open(f'{save_res_dir}/{seed}_search_info.json', 'w') as f:
             json.dump(search_info, f)
 
-    logger.info('='*200)
+    logger.info('='*80)
     logger.info(f'[LLAMBO] {seed+1} evaluation runs complete! Total cost: ${tot_llm_cost:.4f}')

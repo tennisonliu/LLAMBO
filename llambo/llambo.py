@@ -6,9 +6,11 @@ from llambo.warping import NumericalTransformer
 import pandas as pd
 import time
 import pprint
+import logging
+
 
 class LLAMBO:
-    def __init__(self, 
+    def __init__(self,
                  task_context: dict, # dictionary describing task (see above)
                  sm_mode, # either 'generative' or 'discriminative'
                  n_candidates, # number of candidate points to sample at each iteration
@@ -20,10 +22,12 @@ class LLAMBO:
                  init_f,        # function to generate initial configurations
                  bbox_eval_f,       # bbox function to evaluate a point
                  chat_engine,       # LLM chat engine
+                 provider='ollama',     # provider for LLM, either 'openai' or 'ollama'
                  top_pct=None,      # only used for generative SM, top percentage of points to consider for generative SM
                  use_input_warping=False,       # whether to use input warping
                  prompt_setting=None,    # ablation on prompt design, either 'full_context' or 'partial_context' or 'no_context'
-                 shuffle_features=False     # whether to shuffle features in prompt generation
+                 shuffle_features=False,     # whether to shuffle features in prompt generation
+                 logger=None
                  ):
         self.task_context = task_context
         assert sm_mode in ['generative', 'discriminative']
@@ -37,9 +41,15 @@ class LLAMBO:
         self.alpha = alpha
         self.n_initial_samples = n_initial_samples
         self.n_trials = n_trials
+        self.provider = provider
         self.llm_query_cost = []    # list of cost for LLM calls in EACH TRIAL
         self.llm_query_time = []    # list of time taken for LLM calls in EACH TRIAL
-
+        if logger is None:
+            logging.basicConfig(level=logging.INFO)
+            logger = logging.getLogger(__name__)
+        else:
+            self.logger = logger
+            logger = logger
         assert type(shuffle_features) == bool, 'shuffle_features should be a boolean'
         assert type(use_input_warping) == bool, 'use_input_warping should be a boolean'
 
@@ -51,35 +61,40 @@ class LLAMBO:
         else:
             warping_transformer = None
 
-        rate_limiter = RateLimiter(max_tokens=200000, time_frame=60, max_requests=1440)
-        
-        print('='*150)
-        print(f'[Search settings]: ' + '\n\t'
+        if self.provider == 'openai':
+            max_tokens = 100000
+        else:
+            max_tokens = 1000000
+        rate_limiter = RateLimiter(max_tokens=max_tokens, time_frame=60, max_requests=1440)
+
+
+        logger.info('='*80)
+        logger.info(f'[Search settings]: ' + '\n\t'
               f'n_candidates: {n_candidates}, n_templates: {n_templates}, n_gens: {n_gens}, ' + '\n\t'
               f'alpha: {alpha}, n_initial_samples: {n_initial_samples}, n_trials: {n_trials}, ' + '\n\t'
               f'using warping: {use_input_warping}, ablation: {prompt_setting}, '
               f'shuffle_features: {shuffle_features}')
-        print(f'[Task]: ' + '\n\t'
+        logger.info(f'[Task]: ' + '\n\t'
               f'task type: {task_context["task"]}, sm: {sm_mode}, lower is better: {lower_is_better}')
-        print(f'Hyperparameter search space: ')
+        logger.info(f'Hyperparameter search space: ')
         pprint.pprint(task_context['hyperparameter_constraints'])
-        print('='*150)
+        logger.info('='*80)
 
         # initialize surrogate model and acquisition function
         if sm_mode == 'generative':
             self.surrogate_model = LLM_GEN_SM(task_context, n_gens, lower_is_better, top_pct,
                                               n_templates=n_templates, rate_limiter=None)
         else:
-            self.surrogate_model = LLM_DIS_SM(task_context, n_gens, lower_is_better, 
-                                              n_templates=n_templates, rate_limiter=rate_limiter, 
+            self.surrogate_model = LLM_DIS_SM(task_context, n_gens, lower_is_better,
+                                              n_templates=n_templates, rate_limiter=rate_limiter,
                                               warping_transformer=warping_transformer,
-                                              chat_engine=chat_engine, prompt_setting=prompt_setting, 
-                                              shuffle_features=shuffle_features)
-            
-        self.acq_func = LLM_ACQ(task_context, n_candidates, n_templates, lower_is_better, 
-                                rate_limiter=rate_limiter, warping_transformer=warping_transformer, 
-                                chat_engine=chat_engine, prompt_setting=prompt_setting, 
-                                shuffle_features=shuffle_features)
+                                              chat_engine=chat_engine, prompt_setting=prompt_setting,
+                                              shuffle_features=shuffle_features,provider=self.provider)
+
+        self.acq_func = LLM_ACQ(task_context, n_candidates, n_templates, lower_is_better,
+                                rate_limiter=rate_limiter, warping_transformer=warping_transformer,
+                                chat_engine=chat_engine, prompt_setting=prompt_setting,
+                                shuffle_features=shuffle_features, provider=self.provider,logger=self.logger)
 
 
     def _initialize(self):
@@ -172,8 +187,8 @@ class LLAMBO:
             print('='*150)
 
             # select candidate point
-            sel_candidate_point, cost, time_taken = self.surrogate_model.select_query_point(self.observed_configs, 
-                                                                           self.observed_fvals[['score']], 
+            sel_candidate_point, cost, time_taken = self.surrogate_model.select_query_point(self.observed_configs,
+                                                                           self.observed_fvals[['score']],
                                                                            candidate_points)
             trial_cost += cost
             trial_query_time += time_taken
@@ -220,7 +235,7 @@ class LLAMBO:
 
             if best_found:
                 print(f'[Trial {trial_id} completed, time taken: {time_taken:.2f}s] best fval (cv): {self.best_fval:.4f}, current fval (cv): {current_fval_cv:.4f}. Generalization fval: {current_fval_gen:.4f} NEW BEST FVAL FOUND!!')
-            else: 
+            else:
                 print(f'[Trial {trial_id} completed, time taken: {time_taken:.2f}s] best fval (cv): {self.best_fval:.4f}, current fval (cv): {current_fval_cv:.4f}. Generalization fval: {current_fval_gen:.4f}.')
             print('='*150)
 

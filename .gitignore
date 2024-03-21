@@ -161,3 +161,5 @@ cython_debug/
 
 exp_*/results_*/*/*/*.json
 exp_*/results_*/*/*/*.csv
+results/*
+custom_dataset/*.pickle

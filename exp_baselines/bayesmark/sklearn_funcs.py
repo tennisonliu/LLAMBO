@@ -323,12 +323,12 @@ class SklearnModelCustom(TestFunction):
     ]
 
     _CUSTOM_DATASET = [
-        "maggic", "seer", "cutract", 'Rosenbrock', 'Griewank', 'KTablet'
+        "maggic", "seer", "cutract", 'Rosenbrock', 'Griewank', 'KTablet', 'CMRR_score', 'Offset_score'
     ]
 
 
     _LOG_DATASET = [
-        'Rosenbrock', 'Griewank', 'KTablet'
+        'Rosenbrock', 'Griewank', 'KTablet', 'CMRR_score', 'Offset_score'
     ]
 
     def __init__(self, model, dataset, metric, shuffle_seed=0, data_root=None):

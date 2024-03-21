@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+from rich.logging import RichHandler
+from rich.console import Console
+import logging
+
+logger = logging.getLogger(__name__)
 
 class NumericalTransformer:
     '''
@@ -46,3 +51,28 @@ class DictToObject:
                 value = DictToObject(value)
             setattr(self, key, value)
             self.attrs.append(key)
+
+
+def setup_logging(logger, log_name):
+    # Create a console instance for rich log output. This could be omitted if you're okay with the default console.
+    console = Console()
+
+    # Log format for the file handler
+    log_format = '%(asctime)s - %(levelname)s - %(message)s'
+    date_format = '%Y-%m-%d %H:%M:%S'
+    formatter = logging.Formatter(log_format, datefmt=date_format)
+
+    # File handler for writing logs to a file
+    file_handler = logging.FileHandler(log_name, mode='w')
+    file_handler.setFormatter(formatter)
+
+    # Rich terminal handler for colorful and formatted terminal log display
+    # Since we're using the rich default format, we don't set a formatter here
+    stream_handler = RichHandler(console=console)
+
+    # Add handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    # Set the log level
+    logger.setLevel(logging.INFO)

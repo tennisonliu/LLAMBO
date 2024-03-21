@@ -1,0 +1,42 @@
+[
+    {
+        "hidden_layer_sizes": 181,
+        "alpha": 3.1559885427439487,
+        "batch_size": 159,
+        "learning_rate_init": 0.050289509812088885,
+        "power_t": 0.2865019090426639,
+        "momentum": 0.049574483597293356
+    },
+    {
+        "hidden_layer_sizes": 143,
+        "alpha": 0.5970697468903918,
+        "batch_size": 74,
+        "learning_rate_init": 0.00021849873967799889,
+        "power_t": 0.8356061924016086,
+        "momentum": 0.0014480169974346719
+    },
+    {
+        "hidden_layer_sizes": 99,
+        "alpha": 8.463635928093716e-05,
+        "batch_size": 212,
+        "learning_rate_init": 3.1545246810074084e-05,
+        "power_t": 0.2245359149085193,
+        "momentum": 0.004320124307039173
+    },
+    {
+        "hidden_layer_sizes": 63,
+        "alpha": 0.011246767299399442,
+        "batch_size": 10,
+        "learning_rate_init": 0.004537485755197704,
+        "power_t": 0.41153822977710547,
+        "momentum": 0.17275772295150818
+    },
+    {
+        "hidden_layer_sizes": 138,
+        "alpha": 0.0008368460480455732,
+        "batch_size": 126,
+        "learning_rate_init": 0.001445059218688347,
+        "power_t": 0.10776060395208005,
+        "momentum": 0.9399485700010473
+    }
+]

@@ -1,0 +1,83 @@
+{
+    "cirname": "OTA_XT_MAGICAL",
+    "dir_prefix": "/home/local/eda13/gc29434/phd/analog/LAD24/data/OTA_XT_MAGICAL_CMRR",
+    "net_names": [
+        "BIAS1",
+        "BIAS2",
+        "CAS2N",
+        "CASN",
+        "CASP",
+        "GND",
+        "NBIAS_TAIL",
+        "NCAS",
+        "net088",
+        "net096",
+        "net0108",
+        "PCAS",
+        "TAIL1",
+        "VCM",
+        "VCMON",
+        "VCMON2",
+        "VCMOP",
+        "VDD",
+        "VIM",
+        "VIP",
+        "VO1M",
+        "VO1P",
+        "VOM",
+        "VOP",
+        "VS",
+        "VS2",
+        "CAS2P"
+    ],
+    "cnet_pairs_0": [
+        "CASP",
+        "VO1M",
+        "CAS2P",
+        "VOM",
+        "VCMOP"
+    ],
+    "cnet_pairs_1": [
+        "CASN",
+        "VO1P",
+        "CAS2N",
+        "VOP",
+        "VCMON"
+    ],
+    "all_cnets": [
+        "CASP",
+        "VO1M",
+        "CAS2P",
+        "VOM",
+        "VCMOP",
+        "TAIL1",
+        "VS",
+        "VS2",
+        "VCM",
+        "NBIAS_TAIL",
+        "PCAS",
+        "NCAS",
+        "net0108",
+        "VCMON2"
+    ],
+    "cwei": [
+        5
+    ],
+    "capname": [
+        "cfmom_2t",
+        "cfmom"
+    ],
+    "obj": [
+        "CMRR",
+        "Offset"
+    ],
+    "obj_val": [
+        80,
+        0.001
+    ],
+    "gl": [
+        "max",
+        "min"
+    ],
+    "save_dir": "custom_dataset"
+}

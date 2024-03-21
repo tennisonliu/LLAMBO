@@ -24,7 +24,7 @@ class LLM_DIS_SM:
                  use_recalibration=False,
                  rate_limiter=None, warping_transformer=None,
                  verbose=False, chat_engine=None, 
-                 prompt_setting=None, shuffle_features=False):
+                 prompt_setting=None, shuffle_features=False, provider='ollama'):
         '''Initialize the forward LLM surrogate model. This is modelling p(y|x) as in GP/SMAC etc.'''
         self.task_context = task_context
         self.n_gens = n_gens
@@ -49,7 +49,7 @@ class LLM_DIS_SM:
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
         # self.provider = 'openai'
-        self.provider = 'ollama'
+        self.provider = provider
         assert type(self.shuffle_features) == bool, 'shuffle_features must be a boolean'
 
 
@@ -72,7 +72,7 @@ class LLM_DIS_SM:
             try:
                 self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
                 resp = await client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model=self.chat_engine,
                     messages=message,
                     temperature=0.7,
                     max_tokens=8,
@@ -82,12 +82,10 @@ class LLM_DIS_SM:
                 self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
             except Exception as e:
                 raise e
-                # print(resp)
-                # print(e)
-
 
         if resp is None:
             raise Exception('Response is None')
+
 
         tot_tokens = resp.usage.total_tokens
         tot_cost = 0.0015*(resp.usage.prompt_tokens/1000) + 0.002*(resp.usage.completion_tokens/1000)
@@ -106,7 +104,7 @@ class LLM_DIS_SM:
         try:
             # self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
             resp = await AsyncOllamaClient().chat(
-                model="llama2:13b",
+                model=self.chat_engine,
                 messages=message,
                 options={
                     "temperature": 0.7,

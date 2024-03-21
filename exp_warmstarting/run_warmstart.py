@@ -4,13 +4,28 @@ sys.path.append('exp_baselines') # Add the 'exp_baselines' directory to the Pyth
 from utils_templates import FullTemplate, RandomTemplate
 from tasks import run_bayesmark
 
+
+    # _LIST_MODELS_REG2 = {
+    #     "kNN": "K Nearest Neighbor",
+    #     "SVM": "SVM",
+    #     "DT": "DecisionTree",
+    #     "RF": "RandomForest",
+    #     "MLP-adam": "MLP",
+    #     "MLP-sgd": "MLP",
+    #     "ada": "AdaBoost",
+    #     "lasso": "LogisticRegression",
+    #     "linear": "LogisticRegression"
+    # }
+
+
 # Define lists of configurations for the experiments.
 LIST_INIT     = ["random", "sobol", "lhs", "Partial_Context", "No_Context", "Full_Context"]
 LIST_SM       = ["bo_tpe", "bo_skopt"]
-LIST_DATASETS = [ 'breast', 'wine', 'digits', 'cutract', 'maggic', 'seer']
+# LIST_DATASETS = [ 'breast', 'wine', 'digits', 'cutract', 'maggic', 'seer']
+LIST_DATASETS = ['CMRR_score', 'Offset_score']
 
-LIST_MODELS   = ['RF', 'SVM', 'DT']
-LIST_METRICS  = ['acc']
+LIST_MODELS   = ['RF', 'SVM', 'DT', 'MLP-sgd', 'ada']
+LIST_METRICS  = ['mse']
 NUM_SEEDS     = 10
 NUM_INIT      = 5
 NUM_RUNS      = 25

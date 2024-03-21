@@ -1,4 +1,5 @@
 import os
+import re
 import random
 import math
 import time
@@ -16,12 +17,10 @@ from llambo.warping import DictToObject
 import logging
 
 
-logger = logging.getLogger(__name__)
-
 class LLM_ACQ:
-    def __init__(self, task_context, n_candidates, n_templates, lower_is_better, 
-                 jitter=False, rate_limiter=None, warping_transformer=None, chat_engine=None, 
-                 prompt_setting=None, shuffle_features=False):
+    def __init__(self, task_context, n_candidates, n_templates, lower_is_better,
+                 jitter=False, rate_limiter=None, warping_transformer=None, chat_engine=None,
+                 prompt_setting=None, shuffle_features=False,provider='ollama',logger=None):
         '''Initialize the LLM Acquisition function.'''
         self.task_context = task_context
         self.n_candidates = n_candidates
@@ -43,7 +42,12 @@ class LLM_ACQ:
         self.prompt_setting = prompt_setting
         self.shuffle_features = shuffle_features
         # self.provider = 'openai'
-        self.provider = 'ollama'
+        self.provider = provider
+        if logger is None:
+            logging.basicConfig(level=logging.INFO)
+            self.logger = logging.getLogger(__name__)
+        else:
+            self.logger = logger
 
         assert type(self.shuffle_features) == bool, 'shuffle_features must be a boolean'
 
@@ -58,8 +62,8 @@ class LLM_ACQ:
         assert hasattr(self, 'observed_worst'), 'observed_worst must be set before calling _jitter'
         assert hasattr(self, 'alpha'), 'alpha must be set before calling _jitter'
 
-        jittered = np.random.uniform(low=min(desired_fval, self.observed_best), 
-                                        high=max(desired_fval, self.observed_best), 
+        jittered = np.random.uniform(low=min(desired_fval, self.observed_best),
+                                        high=max(desired_fval, self.observed_best),
                                         size=1).item()
 
         return jittered
@@ -75,15 +79,15 @@ class LLM_ACQ:
 
     def _prepare_configurations_acquisition(
         self,
-        observed_configs=None, 
-        observed_fvals=None, 
+        observed_configs=None,
+        observed_fvals=None,
         seed=None,
         use_feature_semantics=True,
         shuffle_features=False
     ):
         '''Prepare and (possibly shuffle) few-shot examples for prompt templates.'''
         examples = []
-        
+
         if seed is not None:
             # if seed is provided, shuffle the observed configurations
             np.random.seed(seed)
@@ -105,7 +109,7 @@ class LLM_ACQ:
             np.random.seed(0)
             shuffled_columns = np.random.permutation(observed_configs.columns)
             observed_configs = observed_configs[shuffled_columns]
-            
+
         # serialize the k-shot examples
         if observed_configs is not None:
             hyperparameter_names = observed_configs.columns
@@ -158,14 +162,14 @@ class LLM_ACQ:
             examples = [{'A': f'{observed_fvals:.6f}'}]
         else:
             raise Exception
-            
+
         return examples
-    
+
 
     def _gen_prompt_tempates_acquisitions(
         self,
-        observed_configs, 
-        observed_fvals, 
+        observed_configs,
+        observed_fvals,
         desired_fval,
         n_prompts=1,
         use_context='full_context',
@@ -191,11 +195,11 @@ class LLM_ACQ:
             metric = 'mean squared error' if task_context['metric'] == 'neg_mean_squared_error' else task_context['metric']
             num_samples = task_context['num_samples']
             hyperparameter_constraints = task_context['hyperparameter_constraints']
-            
+
             example_template = """
 Performance: {A}
 Hyperparameter configuration: {Q}"""
-            
+
             example_prompt = PromptTemplate(
                 input_variables=["Q", "A"],
                 template=example_template
@@ -245,7 +249,7 @@ Hyperparameter configuration: {Q}"""
                         prefix += f"- {hyperparameter}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
                     else:
                         prefix += f"- X{i+1}: [{lower_bound:.{n_dp}f}, {upper_bound:.{n_dp}f}]"
-                    
+
                     if constraint[1] == 'log' and self.apply_warping:
                         prefix += f" (log scale, precise to {n_dp} decimals)"
                     else:
@@ -259,7 +263,7 @@ Hyperparameter configuration: {Q}"""
                     prefix += f" (ordinal, must take value in {constraint[2]})"
 
                 else:
-                    raise Exception('Unknown hyperparameter value type') 
+                    raise Exception('Unknown hyperparameter value type')
 
                 prefix += "\n"
             prefix += f"Recommend a configuration that can achieve the target performance of {jittered_desired_fval:.6f}. "
@@ -303,23 +307,20 @@ Hyperparameter configuration:"""
             try:
                 self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
                 resp = await client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model=self.chat_engine,
                     messages=message,
                     temperature=0.8,
-                    max_tokens=500,
+                    max_tokens=128,
                     top_p=0.95,
                     n=self.n_gens,
                 )
                 self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
             except Exception as e:
                 raise e
-                # print(resp)
-                # print(e)
-
 
         if resp is None:
             raise Exception('Response is None')
-
+        self.logger.info(f'Response: {resp.choices[0].message.content}')
         tot_tokens = resp.usage.total_tokens
         tot_cost = 0.0015*(resp.usage.prompt_tokens/1000) + 0.002*(resp.usage.completion_tokens/1000)
 
@@ -335,11 +336,12 @@ Hyperparameter configuration:"""
         try:
             # self.rate_limiter.add_request(request_text=user_message, current_time=time.time())
             resp = await AsyncOllamaClient().chat(
-                model="llama2:13b",
+                model=self.chat_engine,
                 messages=message,
                 options={
                     "temperature": 0.8,
                     "top_p": 0.95,
+                    "num_predict": 128,
                 }
             )
             # self.rate_limiter.add_request(request_token_count=resp.usage.total_tokens, current_time=time.time())
@@ -352,7 +354,7 @@ Hyperparameter configuration:"""
 
         resp = DictToObject(resp)
 
-        print(f'[acquisition_function.py:355] Response: {resp.message.content}')
+        self.logger.info(f'Response: {resp.message.content}')
 
         tot_tokens = resp.eval_count
         tot_cost = 0.0015*(resp.eval_count/1000) + 0.002*(resp.eval_count/1000)
@@ -390,7 +392,7 @@ Hyperparameter configuration:"""
                 results[idx] = (resp, tot_cost, tot_tokens)
 
         return results  # format [(resp, tot_cost, tot_tokens), None, (resp, tot_cost, tot_tokens)]
-    
+
     def _convert_to_json(self, response_str):
         '''Parse LLM response string into JSON.'''
         pairs = response_str.split(',')
@@ -398,9 +400,9 @@ Hyperparameter configuration:"""
         for pair in pairs:
             key, value = [x.strip() for x in pair.split(':')]
             response_json[key] = float(value)
-            
+
         return response_json
-    
+
     def _filter_candidate_points(self, observed_points, candidate_points, precision=8):
         '''Filter candidate points that already exist in observed points. Also remove duplicates.'''
         # drop points that already exist in observed points
@@ -451,8 +453,8 @@ Hyperparameter configuration:"""
         filtered_candidates = filtered_candidates.reset_index(drop=True)
         return filtered_candidates
 
-    
-    def get_candidate_points(self, observed_configs, observed_fvals, 
+
+    def get_candidate_points(self, observed_configs, observed_fvals,
                              use_feature_semantics=True, use_context='full_context', alpha=-0.2):
         '''Generate candidate points for acquisition function.'''
         assert alpha >= -1 and alpha <= 1, 'alpha must be between -1 and 1'
@@ -485,7 +487,7 @@ Hyperparameter configuration:"""
                         alpha = alpha_  # new alpha
                         desired_fval = self.observed_best - alpha*range
                         break
-            print(f'Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}')
+            self.logger.info(f'Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}')
         else:
             self.observed_best = np.max(observed_fvals.values)
             self.observed_worst = np.min(observed_fvals.values)
@@ -498,7 +500,7 @@ Hyperparameter configuration:"""
                         desired_fval = self.observed_best + alpha*range
                         break
 
-            print(f'Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}')
+            self.logger.info(f'Adjusted alpha: {alpha} | [original alpha: {self.alpha}], desired fval: {desired_fval:.6f}')
 
         self.desired_fval = desired_fval
 
@@ -507,18 +509,22 @@ Hyperparameter configuration:"""
 
         prompt_templates, query_templates = self._gen_prompt_tempates_acquisitions(observed_configs, observed_fvals, desired_fval, n_prompts=self.n_templates, use_context=use_context, use_feature_semantics=use_feature_semantics, shuffle_features=self.shuffle_features)
 
-        print('='*100)
-        print('[acquisition_function.py] EXAMPLE ACQUISITION PROMPT')
-        print(f'[acquisition_function.py] Length of prompt templates: {len(prompt_templates)}')
-        print(f'[acquisition_function.py] Length of query templates: {len(query_templates)}')
-        print(prompt_templates[0].format(A=query_templates[0][0]['A']))
-        print('='*100)
+        self.logger.info('='*100)
+        self.logger.info('EXAMPLE ACQUISITION PROMPT')
+        self.logger.info(f'Length of prompt templates: {len(prompt_templates)}')
+        self.logger.info(f'Length of query templates: {len(query_templates)}')
+        self.logger.info(prompt_templates[0].format(A=query_templates[0][0]['A']))
+        self.logger.info('='*100)
 
         number_candidate_points = 0
         filtered_candidate_points = pd.DataFrame()
 
         retry = 0
-        while number_candidate_points < 5:
+        if self.provider == 'openai':
+            MIN_CANDIDATE_POINTS = 5
+        else:
+            MIN_CANDIDATE_POINTS = 4
+        while number_candidate_points < MIN_CANDIDATE_POINTS:
             llm_responses = asyncio.run(self._async_generate_concurrently(prompt_templates, query_templates))
 
             candidate_points = []
@@ -533,20 +539,35 @@ Hyperparameter configuration:"""
                     for response_message in response[0].choices:
                             response_content = response_message.message.content
                             try:
-                                response_content = response_content.split('##')[1].strip()
+                                if '\\' in response_content:
+                                    response_content = response_content.replace('\\', '')
+                                    self.logger.info(f'Fixed response, remove \\: {response_content}')
+                                if '##' in response_content:
+                                    response_content = response_content.split('##')[1].strip()
+                                else:
+                                    response_content = response_content.strip().rstrip('.')
+                                    matches = re.findall(r'(\w+): ([\d.]+)', response_content)
+                                    response_content = ', '.join([f"{match[0]}: {match[1]}" for match in matches])
                                 candidate_points.append(self._convert_to_json(response_content))
                             except:
-                                print('[acquisition_function.py]')
-                                print(response_content)
+                                self.logger.error(f'Failed to parse response: {response_content}')
                                 continue
                 elif self.provider == 'ollama':
                     response_content = response[0].message.content
+                    response_content_bk = response_content
                     try:
-                        response_content = response_content.split('##')[1].strip()
+                        if '\\' in response_content:
+                            response_content = response_content.replace('\\', '')
+                            self.logger.info(f'Fixed response, remove \\: {response_content}')
+                        if '##' in response_content:
+                            response_content = response_content.split('##')[1].strip()
+                        else:
+                            response_content = response_content.strip().rstrip('.')
+                            matches = re.findall(r'(\w+): ([\d.]+)', response_content)
+                            response_content = ', '.join([f"{match[0]}: {match[1]}" for match in matches])
                         candidate_points.append(self._convert_to_json(response_content))
                     except:
-                        print('[acquisition_function.py]')
-                        print(response_content)
+                        self.logger.error(f'Failed to parse response: {response_content} \n Original response: {response_content_bk}')
                         continue
                 else:
                     raise Exception('Unknown provider')
@@ -557,17 +578,16 @@ Hyperparameter configuration:"""
             filtered_candidate_points = pd.concat([filtered_candidate_points, proposed_points], ignore_index=True)
             number_candidate_points = filtered_candidate_points.shape[0]
 
-            print(f'[acquisition_function.py] Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, ',
-                f'[acquisition_function.py] number of accepted candidate points: {filtered_candidate_points.shape[0]}')
+            self.logger.info(f'Attempt: {retry}, number of proposed candidate points: {len(candidate_points)}, \n number of accepted candidate points: {filtered_candidate_points.shape[0]}')
 
 
             retry += 1
             MAX_RETRY = 5
             if retry > MAX_RETRY:
-                print(f'Desired fval: {desired_fval:.6f}')
-                print(f'Number of proposed candidate points: {len(candidate_points)}')
-                print(f'Number of accepted candidate points: {filtered_candidate_points.shape[0]}')
-                if len(candidate_points) > 5:
+                self.logger.info(f'Desired fval: {desired_fval:.6f}')
+                self.logger.info(f'Number of proposed candidate points: {len(candidate_points)}')
+                self.logger.info(f'Number of accepted candidate points: {filtered_candidate_points.shape[0]}')
+                if len(candidate_points) > MIN_CANDIDATE_POINTS:
                     filtered_candidate_points = pd.DataFrame(candidate_points)
                     break
                 else:

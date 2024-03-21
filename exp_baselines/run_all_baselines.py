@@ -8,14 +8,17 @@ import argparse
 # Define lists of dataset names for classification, regression, and HPOBench benchmarking
 LIST_DATASETS_CLF      = ['breast', 'wine', 'digits', 'iris', 'cutract', 'maggic', 'seer']
 LIST_DATASETS_REG      = ['diabetes', 'Griewank', 'KTablet', 'Rosenbrock']
+LIST_CUSTOM_DATASETS_REG = ['CMRR_score', 'Offset_score']
 LIST_DATASETS_HPOBENCH = [0, 1, 2, 3, 4, 5, 6, 7]
 
 # Define lists of metric names for accuracy and regression tasks
 LIST_METRICS_ACC       = ['acc']
 LIST_METRICS_REG       = ['mse']
+LIST_CUSTOM_METRICS_REG  = ['mse']
 
 # Define lists of model names for use in Bayesmark and HPOBench benchmarking
 LIST_MODELS_BAYESMARK  = ['RF', 'SVM', 'DT', 'MLP-sgd','ada']
+LIST_MODELS_CUSTOM  = ['RF', 'SVM', 'DT', 'MLP-sgd', 'ada']
 LIST_MODELS_HPOBENCH   = ['rf', 'xgb','nn']
 
 # Initialize a list of Bayesian Optimization (BO) model configurations
@@ -23,12 +26,12 @@ LIST_MODELS_HPOBENCH   = ['rf', 'xgb','nn']
 ALL_BO_MODELS   = [{'template_object': RandomTemplate(), 'name_experiment': 'TPE (Random init)', 'bo_type': 'bo_tpe'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'GP (Random init)', 'bo_type': 'bo_gp'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'GP DKL (Random init)', 'bo_type': 'bo_dkl'}]
-ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'SMAC (Random init)', 'bo_type': 'bo_smac'}]
+# ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'SMAC (Random init)', 'bo_type': 'bo_smac'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'SKOPT (Random init)', 'bo_type': 'bo_skopt'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'Turbo (Random init)', 'bo_type': 'bo_turbo'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'Optuna (Random init)', 'bo_type': 'bo_optuna'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'Random (Random init)', 'bo_type': 'bo_random'}]
-ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'HEBO (Random init)', 'bo_type': 'bo_hebo'}]
+# ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'HEBO (Random init)', 'bo_type': 'bo_hebo'}]
 ALL_BO_MODELS  += [{'template_object': RandomTemplate(), 'name_experiment': 'DNGO (Random init)', 'bo_type': 'bo_dngo'}]
 
 # Define constants for experiment configuration
@@ -58,6 +61,14 @@ if __name__ == '__main__':
             LIST_METRICS  = LIST_METRICS_REG
         # Run the Bayesmark experiment with the specified configurations
         run_bayesmark(LIST_MODELS_BAYESMARK, LIST_DATASETS, LIST_METRICS, all_dict_templates = ALL_BO_MODELS,  n_repetitions = NUM_SEEDS, n_runs = NUM_RUNS, n_init = NUM_INIT)
+
+    if run_config in ['custom_reg']:
+        from tasks import run_custom
+        LIST_DATASETS = LIST_CUSTOM_DATASETS_REG
+        LIST_METRICS = LIST_CUSTOM_METRICS_REG
+        run_custom(LIST_MODELS_CUSTOM, LIST_DATASETS, LIST_METRICS, all_dict_templates = ALL_BO_MODELS, n_repetitions = NUM_SEEDS, n_runs = NUM_RUNS, n_init = NUM_INIT)
+
+
 
     elif run_config == 'hpobench':
         # Import the function to run HPOBench experiments
