@@ -13,18 +13,12 @@ from llambo.rate_limiter import RateLimiter
 from exp_evaluate_sampling.evaluate_sampling_utils import sample_from_TPESampler, sample_from_RandomSampler, sample_from_GP
 from exp_evaluate_sampling.metrics_utils import calculate_mahalanobis_dist, calculate_gen_var, calculate_loglikelihood
 import warnings
+from llambo.warping import setup_logging
 warnings.simplefilter(action='ignore', category=FutureWarning)
 optuna.logging.set_verbosity(optuna.logging.ERROR)
-rate_limiter = RateLimiter(max_tokens=100000, time_frame=60)
+# rate_limiter = RateLimiter(max_tokens=100000, time_frame=60)
 
 logger = logging.getLogger(__name__)
-
-def setup_logging(log_name):
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler(log_name, mode='w')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.INFO)
 
 
 def obtain_n_configurations(hp_constraints, n, dataset, model, 
@@ -209,14 +203,18 @@ def evaluate_proposals(candidates, observed, model, task_type, task_metric,
 
 
 
-TASK_MAP = {
-    'breast': ['classification', 'accuracy'],
-    'digits': ['classification', 'accuracy'],
-    'wine': ['classification', 'accuracy'],
-    'iris': ['classification', 'accuracy'],
-    'diabetes': ['regression', 'neg_mean_squared_error'],
-}
+# TASK_MAP = {
+#     'breast': ['classification', 'accuracy'],
+#     'digits': ['classification', 'accuracy'],
+#     'wine': ['classification', 'accuracy'],
+#     'iris': ['classification', 'accuracy'],
+#     'diabetes': ['regression', 'neg_mean_squared_error'],
+# }
 
+TASK_MAP = {
+    'CMRR_score': ['regression', 'neg_mean_squared_error'],
+    'Offset_score': ['regression', 'neg_mean_squared_error'],
+}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -225,6 +223,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_observed', type=int, default=10)
     parser.add_argument('--num_seeds', type=int, default=1)
     parser.add_argument('--engine', type=str)
+    parser.add_argument('--provider', type=str, default='ollama')
 
     args = parser.parse_args()
     model = args.model
@@ -232,6 +231,7 @@ if __name__ == '__main__':
     num_observed = args.num_observed
     num_seeds = args.num_seeds
     engine = args.engine
+    provider = args.provider
 
     # load hyperparameter config space
     with open(f'hp_configurations/bayesmark.json', 'r') as f:
@@ -244,21 +244,21 @@ if __name__ == '__main__':
 
     # define result save directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_res_fpath = f'{script_dir}/results/evaluate_sampling/{dataset_name}/{model}/{num_observed}.json'
+    save_res_fpath = f'{script_dir}/results/evaluate_sampling/{provider}/{dataset_name}/{model}/{num_observed}.json'
     if not os.path.exists(os.path.dirname(save_res_fpath)):
         os.makedirs(os.path.dirname(save_res_fpath))
     # define logging directory
-    logging_fpath = f'{script_dir}/logs/evaluate_sampling/{dataset_name}/{model}/{num_observed}.log'
+    logging_fpath = f'{script_dir}/logs/evaluate_sampling/{provider}/{dataset_name}/{model}/{num_observed}.log'
     if not os.path.exists(os.path.dirname(logging_fpath)):
         os.makedirs(os.path.dirname(logging_fpath))
-    setup_logging(logging_fpath)
+    setup_logging(logger, logging_fpath)
 
     logger.info('='*200)
-    logger.info(f'Evaluating sampling performance on {dataset_name} with {model} and {num_observed} observed configurations... Executing {num_seeds} runs.')
+    logger.info(f'Evaluating sampling performance on {provider} {dataset_name} with {model} and {num_observed} observed configurations... Executing {num_seeds} runs.')
     logger.info('='*200)
 
     # load dataset
-    pickle_fpath = f'bayesmark/data/{dataset_name}.pickle'
+    pickle_fpath = f'custom_dataset/{dataset_name}.pickle'
     with open(pickle_fpath, 'rb') as f:
         dataset = pickle.load(f)
 
@@ -286,6 +286,13 @@ if __name__ == '__main__':
     global_best_score = global_perf[dataset_name]['global_min'] if lower_is_better else global_perf[dataset_name]['global_max']
     global_worst_score = global_perf[dataset_name]['global_max'] if lower_is_better else global_perf[dataset_name]['global_min']
     logger.info(f'Global best score: {global_best_score:.4f}, global worst score: {global_worst_score:.4f}')
+
+    if provider == 'openai':
+        max_tokens = 80000
+    else:
+        max_tokens = 10000000
+    rate_limiter = RateLimiter(max_tokens=max_tokens, time_frame=60, max_requests=1440)
+
 
     tot_llm_cost = 0
     for seed in range(num_seeds):
@@ -366,7 +373,7 @@ if __name__ == '__main__':
         task_context['num_samples'] = dataset['train_x'].shape[0]
         task_context['hyperparameter_constraints'] = hp_constraints
         # sample candidates
-        LLM_Sampler = LLM_ACQ(task_context, n_candidates=20, n_templates=5, lower_is_better=lower_is_better, rate_limiter=rate_limiter, chat_engine=engine)
+        LLM_Sampler = LLM_ACQ(task_context, n_candidates=20, n_templates=5, lower_is_better=lower_is_better, rate_limiter=rate_limiter, chat_engine=engine,provider=provider, logger=logger)
         candidates, tot_cost, time_taken = LLM_Sampler.get_candidate_points(observed_configs, observed_fvals, alpha=-0.2)
         # evaluate candidates
         candidates = candidates.to_dict('records')
