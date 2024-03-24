@@ -64,7 +64,7 @@ class LLAMBO:
         if self.provider == 'openai':
             max_tokens = 80000
         else:
-            max_tokens = 1000000
+            max_tokens = 10000000
         rate_limiter = RateLimiter(max_tokens=max_tokens, time_frame=60, max_requests=1440)
 
 

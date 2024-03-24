@@ -74,8 +74,8 @@ def ana_baseline():
 
 def info_data(data, show=False):
     data_numeric = data.select_dtypes(include=['float64', 'int64', 'float32', 'int32'])
-    show_set = set(data_numeric.columns).intersection(set(ALL_SCORE_METRICS))
-    data_numeric = data_numeric[list(show_set)]
+    # show_set = set(data_numeric.columns).intersection(set(ALL_SCORE_METRICS))
+    # data_numeric = data_numeric[list(show_set)]
     mean_all = data_numeric.mean()
     min_all = data_numeric.min()
     if show:

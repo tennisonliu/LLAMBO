@@ -11,10 +11,6 @@ ENGINE="gpt-3.5-turbo"
 for dataset in "Offset_score"
 do
     for model in "RandomForest" "SVM" "DecisionTree" "MLP_SGD" "AdaBoost"
-    # for model in "SVM" "DecisionTree" "MLP_SGD" "AdaBoost"
-    # for model in "DecisionTree" "MLP_SGD" "AdaBoost"
-    # for model in "MLP_SGD" "AdaBoost"
-    # for model in "AdaBoost"
     do
         python3 exp_custom/run_custom.py --dataset $dataset --model $model --num_seeds 1 --sm_mode discriminative --engine $ENGINE --provider $provider
         sleep 10

@@ -16,19 +16,14 @@ from sklearn.metrics import mean_squared_error, r2_score
 from uncertainty_toolbox import metrics_calibration as cal
 from exp_evaluate_sm.evaluate_sm_utils import fit_and_predict_with_GP, fit_and_predict_with_SMAC
 import warnings
+from llambo.warping import setup_logging
 warnings.simplefilter(action='ignore', category=FutureWarning)
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-rate_limiter = RateLimiter(max_tokens=100000, time_frame=60)
+# rate_limiter = RateLimiter(max_tokens=100000, time_frame=60)
 
 logger = logging.getLogger(__name__)
 
-def setup_logging(log_name):
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler(log_name, mode='w')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    logger.setLevel(logging.INFO)
 
 
 def obtain_n_configurations(hp_constraints, n, dataset, model, task_metric, task_type, lower_is_better):
@@ -204,12 +199,18 @@ def evaluate_posterior(fval_pred, fval_pred_std, fval_true,
 
 
 
+# TASK_MAP = {
+#     'breast': ['classification', 'accuracy'],
+#     'digits': ['classification', 'accuracy'],
+#     'wine': ['classification', 'accuracy'],
+#     'iris': ['classification', 'accuracy'],
+#     'diabetes': ['regression', 'neg_mean_squared_error'],
+# }
+
+
 TASK_MAP = {
-    'breast': ['classification', 'accuracy'],
-    'digits': ['classification', 'accuracy'],
-    'wine': ['classification', 'accuracy'],
-    'iris': ['classification', 'accuracy'],
-    'diabetes': ['regression', 'neg_mean_squared_error'],
+    'CMRR_score': ['regression', 'neg_mean_squared_error'],
+    'Offset_score': ['regression', 'neg_mean_squared_error'],
 }
 
 
@@ -220,6 +221,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_observed', type=int)
     parser.add_argument('--num_seeds', type=int)
     parser.add_argument('--engine', type=str)
+    parser.add_argument('--provider', type=str, default='ollama')
 
     args = parser.parse_args()
     model = args.model
@@ -227,6 +229,7 @@ if __name__ == '__main__':
     num_observed = args.num_observed
     num_seeds = args.num_seeds
     engine = args.engine
+    provider = args.provider
 
     # load hyperparameter config space
     with open(f'hp_configurations/bayesmark.json', 'r') as f:
@@ -239,21 +242,21 @@ if __name__ == '__main__':
 
     # define result save directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_res_fpath = f'{script_dir}/results/evaluate_dis_sm/{dataset}/{model}/{num_observed}.json'
+    save_res_fpath = f'{script_dir}/results/evaluate_dis_sm/{provider}/{dataset}/{model}/{num_observed}.json'
     if not os.path.exists(os.path.dirname(save_res_fpath)):
         os.makedirs(os.path.dirname(save_res_fpath))
     # define logging directory
-    logging_fpath = f'{script_dir}/logs/evaluate_dis_sm/{dataset}/{model}/{num_observed}.log'
+    logging_fpath = f'{script_dir}/logs/evaluate_dis_sm/{provider}/{dataset}/{model}/{num_observed}.log'
     if not os.path.exists(os.path.dirname(logging_fpath)):
         os.makedirs(os.path.dirname(logging_fpath))
-    setup_logging(logging_fpath)
+    setup_logging(logger, logging_fpath)
 
     logger.info('='*200)
-    logger.info(f'Evaluating Disriminative SM performance on {dataset} with {model} and {num_observed} observed configurations... Running {num_seeds} runs.')
+    logger.info(f'Evaluating Disriminative SM performance on {provider} {dataset} with {model} and {num_observed} observed configurations... Running {num_seeds} runs.')
     logger.info('='*200)
 
     # load dataset
-    pickle_fpath = f'bayesmark/data/{dataset}.pickle'
+    pickle_fpath = f'custom_dataset/{dataset}.pickle'
     with open(pickle_fpath, 'rb') as f:
         dataset = pickle.load(f)
 
@@ -280,6 +283,14 @@ if __name__ == '__main__':
 
 
     tot_llm_cost = 0
+
+    if provider == 'openai':
+        max_tokens = 80000
+    else:
+        max_tokens = 10000000
+    rate_limiter = RateLimiter(max_tokens=max_tokens, time_frame=60, max_requests=1440)
+
+
     for seed in range(num_seeds):
         logger.info('='*200)
         logger.info(f'Evaluating SM with seed {seed}...')
@@ -342,7 +353,7 @@ if __name__ == '__main__':
 
         LLM_SM = LLM_DIS_SM(task_context, n_gens=10, lower_is_better=lower_is_better, 
                                 bootstrapping=False, n_templates=5, use_recalibration=False,
-                                verbose=False, rate_limiter=rate_limiter, chat_engine=engine)
+                                verbose=False, rate_limiter=rate_limiter, chat_engine=engine,provider=provider, logger=logger)
         y_mean, y_std, cost, time_taken = asyncio.run(LLM_SM._evaluate_candidate_points(observed_configs, observed_fvals, candidate_configs))
         scores = evaluate_posterior(y_mean, y_std, candidate_fvals.to_numpy(), f_best, lower_is_better)
         rmse, r2, nll, mace, sharpness, observed_coverage, regret = scores
@@ -367,7 +378,7 @@ if __name__ == '__main__':
         # evaluate LLAMBO - vanilla
         LLM_SM = LLM_DIS_SM(task_context, n_gens=10, lower_is_better=lower_is_better, 
                                 bootstrapping=False, n_templates=1, use_recalibration=False,
-                                verbose=False, rate_limiter=rate_limiter, chat_engine=engine)
+                                verbose=False, rate_limiter=rate_limiter, chat_engine=engine,provider=provider, logger=logger)
         y_mean, y_std, cost, time_taken = asyncio.run(LLM_SM._evaluate_candidate_points(observed_configs, observed_fvals, candidate_configs))
         scores = evaluate_posterior(y_mean, y_std, candidate_fvals.to_numpy(), f_best, lower_is_better)
         rmse, r2, nll, mace, sharpness, observed_coverage, regret = scores

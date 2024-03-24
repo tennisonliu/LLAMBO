@@ -3,6 +3,7 @@ import time
 # import openai
 import asyncio
 import re
+import logging
 import numpy as np
 from openai import AsyncOpenAI
 from ollama import AsyncClient as AsyncOllamaClient
@@ -24,7 +25,7 @@ class LLM_DIS_SM:
                  use_recalibration=False,
                  rate_limiter=None, warping_transformer=None,
                  verbose=False, chat_engine=None, 
-                 prompt_setting=None, shuffle_features=False, provider='ollama'):
+                 prompt_setting=None, shuffle_features=False, provider='ollama', logger=None):
         '''Initialize the forward LLM surrogate model. This is modelling p(y|x) as in GP/SMAC etc.'''
         self.task_context = task_context
         self.n_gens = n_gens
@@ -50,6 +51,12 @@ class LLM_DIS_SM:
         self.shuffle_features = shuffle_features
         # self.provider = 'openai'
         self.provider = provider
+        if logger is None:
+            logging.basicConfig(level=logging.INFO)
+            logger = logging.getLogger(__name__)
+        else:
+            self.logger = logger
+            logger = logger
         assert type(self.shuffle_features) == bool, 'shuffle_features must be a boolean'
 
 
@@ -86,7 +93,7 @@ class LLM_DIS_SM:
         if resp is None:
             raise Exception('Response is None')
 
-
+        self.logger.info(f'Response from OpenAI: \n {resp.choices[0].message.content}')
         tot_tokens = resp.usage.total_tokens
         tot_cost = 0.0015*(resp.usage.prompt_tokens/1000) + 0.002*(resp.usage.completion_tokens/1000)
 
@@ -121,7 +128,7 @@ class LLM_DIS_SM:
             raise Exception('Response is None')
 
         resp = DictToObject(resp)
-
+        self.logger.info(f'Response from ollama: \n {resp.message.content}')
         tot_tokens = resp.eval_count
         tot_cost = 0.0015*(resp.eval_count/1000) + 0.002*(resp.eval_count/1000)
 
@@ -153,7 +160,6 @@ class LLM_DIS_SM:
 
         for response in llm_response:
             if response is not None:
-                # print(f"Query_ID: {query_idx}, \n Response: {response}")
                 query_idx, resp, tot_cost, tot_tokens = response
                 results[query_idx].append([resp, tot_cost, tot_tokens])
 
@@ -183,6 +189,7 @@ class LLM_DIS_SM:
                         all_gens_text = [x.message.content for template_response in sample_response for x in template_response[0].choices ]        # fuarr this is some high level programming
                         for gen_text in all_gens_text:
                             gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
+                            print(f"OpenAI gen_pred: {gen_pred}")
                             if len(gen_pred) == 1:
                                 sample_preds.append(float(gen_pred[0]))
                             else:
@@ -195,12 +202,10 @@ class LLM_DIS_SM:
                     elif self.provider == 'ollama':
                         sample_preds = []
                         all_gens_text = [x[0].message.content for x in sample_response]
-                        # print('*'*100)
-                        # print('all_gens_text:', all_gens_text)
-                        # print('*'*100)
                         for gen_text in all_gens_text:
-                            gen_pred = re.findall(r"## (-?[\d.]+) ##", gen_text)
-                            if len(gen_pred) == 1:
+                            gen_pred = re.findall(r"\d+\.\d+", gen_text)
+                            print(f"Ollama gen_pred: {gen_pred}")
+                            if len(gen_pred) >= 1:
                                 sample_preds.append(float(gen_pred[0]))
                             else:
                                 sample_preds.append(np.nan)
@@ -246,7 +251,7 @@ class LLM_DIS_SM:
                 self.recalibrator = recalibrator
             else:
                 self.recalibrator = None
-            print(f'[Recalibration] COMPLETED')
+            self.logger.info(f'[Recalibration] COMPLETED')
 
         all_run_cost += tot_cost
         all_run_time += time_taken
@@ -256,10 +261,10 @@ class LLM_DIS_SM:
                                                                     use_context=use_context, use_feature_semantics=use_feature_semantics, 
                                                                     shuffle_features=self.shuffle_features, apply_warping=self.apply_warping)
 
-        print('*'*100)
-        print(f'[discriminative_sm.py] Number of all_prompt_templates: {len(all_prompt_templates)}')
-        print(f'[discriminative_sm.py] Number of query_examples: {len(query_examples)}')
-        print(all_prompt_templates[0].format(Q=query_examples[0]['Q']))
+        self.logger.info('*'*100)
+        self.logger.info(f'Number of all_prompt_templates: {len(all_prompt_templates)}')
+        self.logger.info(f'Number of query_examples: {len(query_examples)}')
+        self.logger.info(all_prompt_templates[0].format(Q=query_examples[0]['Q']))
 
         response = await self._predict(all_prompt_templates, query_examples)
 

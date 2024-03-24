@@ -8,7 +8,8 @@ ENGINE="gpt-3.5-turbo"
 
 for dataset in "CMRR_score" "Offset_score"
 do
-    for model in "RandomForest" "SVM" "AdaBoost"
+    # for model in "RandomForest" "SVM" "AdaBoost"
+    for model in "DecisionTree" "MLP_SGD"
     do
         for num_observed in 5 10 20 30
         do
