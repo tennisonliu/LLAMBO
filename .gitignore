@@ -163,3 +163,5 @@ exp_*/results_*/*/*/*.json
 exp_*/results_*/*/*/*.csv
 results/*
 custom_dataset/*.pickle
+**.DS_Store
+ana-res/vis-res/*
