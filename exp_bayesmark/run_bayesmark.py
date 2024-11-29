@@ -1,3 +1,8 @@
+import asyncio
+import nest_asyncio
+from skopt.space import Integer, Real
+
+nest_asyncio.apply()
 import os
 import pickle
 import json
@@ -7,65 +12,71 @@ import warnings
 import random
 import pandas as pd
 import numpy as np
-from llambo.llambo import LLAMBO
+from llambo.llambo import LLAMBO, GpBoOptimizer, MabController
 from bayesmark.bbox_utils import get_bayesmark_func
 from sklearn.metrics import get_scorer
 from sklearn.model_selection import cross_val_score
 
 logger = logging.getLogger(__name__)
 
+
 def setup_logging(log_name):
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    file_handler = logging.FileHandler(log_name, mode='w')
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+    file_handler = logging.FileHandler(log_name, mode="w")
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     logger.setLevel(logging.INFO)
 
+
 BAYESMARK_TASK_MAP = {
-    'breast': ['classification', 'accuracy'],
-    'digits': ['classification', 'accuracy'],
-    'wine': ['classification', 'accuracy'],
-    'iris': ['classification', 'accuracy'],
-    'diabetes': ['regression', 'neg_mean_squared_error'],
+    "breast": ["classification", "accuracy"],
+    "digits": ["classification", "accuracy"],
+    "wine": ["classification", "accuracy"],
+    "iris": ["classification", "accuracy"],
+    "diabetes": ["regression", "neg_mean_squared_error"],
 }
 
 PRIVATE_TASK_MAP = {
-    'cutract': ['classification', 'accuracy'],
-    'maggic': ['classification', 'accuracy'],
-    'seer': ['classification', 'accuracy'],
-    'griewank': ['regression', 'neg_mean_squared_error'],
-    'ktablet': ['regression', 'neg_mean_squared_error'],
-    'rosenbrock': ['regression', 'neg_mean_squared_error'],
+    "cutract": ["classification", "accuracy"],
+    "maggic": ["classification", "accuracy"],
+    "seer": ["classification", "accuracy"],
+    "griewank": ["regression", "neg_mean_squared_error"],
+    "ktablet": ["regression", "neg_mean_squared_error"],
+    "rosenbrock": ["regression", "neg_mean_squared_error"],
 }
 
 
 class BayesmarkExpRunner:
     def __init__(self, task_context, dataset, seed):
         self.seed = seed
-        self.model = task_context['model']
-        self.task = task_context['task']
-        self.metric = task_context['metric']
+        self.model = task_context["model"]
+        self.task = task_context["task"]
+        self.metric = task_context["metric"]
         self.dataset = dataset
-        self.hyperparameter_constraints = task_context['hyperparameter_constraints']
-        self.bbox_func = get_bayesmark_func(self.model, self.task, dataset['test_y'])
-    
+        self.hyperparameter_constraints = task_context["hyperparameter_constraints"]
+        self.bbox_func = get_bayesmark_func(self.model, self.task, dataset["test_y"])
+
     def generate_initialization(self, n_samples):
-        '''
+        """
         Generate initialization points for BO search
         Args: n_samples (int)
         Returns: list of dictionaries, each dictionary is a point to be evaluated
-        '''
+        """
 
         # Read from fixed initialization points (all baselines see same init points)
-        init_configs = pd.read_json(f'bayesmark/configs/{self.model}/{self.seed}.json').head(n_samples)
-        init_configs = init_configs.to_dict(orient='records')
+        init_configs = pd.read_json(
+            f"bayesmark/configs/{self.model}/{self.seed}.json"
+        ).head(n_samples)
+        init_configs = init_configs.to_dict(orient="records")
 
         assert len(init_configs) == n_samples
 
         return init_configs
-        
+
     def evaluate_point(self, candidate_config):
-        '''
+        """
         Evaluate a single point on bbox
         Args: candidate_config (dict), dictionary containing point to be evaluated
         Returns: (dict, dict), first dictionary is candidate_config (the evaluated point), second dictionary is fvals (the evaluation results)
@@ -74,17 +85,22 @@ class BayesmarkExpRunner:
             'score': float,                     -> 'score' is what the LLAMBO optimizer tries to optimize
             'generalization_score': float
         }
-        '''
+        """
         np.random.seed(self.seed)
         random.seed(self.seed)
 
-        X_train, X_test, y_train, y_test = self.dataset['train_x'], self.dataset['test_x'], self.dataset['train_y'], self.dataset['test_y']
+        X_train, X_test, y_train, y_test = (
+            self.dataset["train_x"],
+            self.dataset["test_x"],
+            self.dataset["train_y"],
+            self.dataset["test_y"],
+        )
 
         for hyperparam, value in candidate_config.items():
-            if self.hyperparameter_constraints[hyperparam][0] == 'int':
+            if self.hyperparameter_constraints[hyperparam][0] == "int":
                 candidate_config[hyperparam] = int(value)
 
-        if self.task == 'regression':
+        if self.task == "regression":
             mean_ = np.mean(y_train)
             std_ = np.std(y_train)
             y_train = (y_train - mean_) / std_
@@ -94,40 +110,41 @@ class BayesmarkExpRunner:
         scorer = get_scorer(self.metric)
 
         with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=UserWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
             S = cross_val_score(model, X_train, y_train, scoring=scorer, cv=5)
         cv_score = np.mean(S)
-        
-        model = self.bbox_func(**candidate_config)  
+
+        model = self.bbox_func(**candidate_config)
         model.fit(X_train, y_train)
         generalization_score = scorer(model, X_test, y_test)
 
-        if self.metric == 'neg_mean_squared_error':
+        if self.metric == "neg_mean_squared_error":
             cv_score = -cv_score
             generalization_score = -generalization_score
 
-        return candidate_config, {'score': cv_score, 'generalization_score': generalization_score}
+        return candidate_config, {
+            "score": cv_score,
+            "generalization_score": generalization_score,
+        }
 
 
-
-if __name__ == '__main__':
-    # parse input arguments
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', type=str)
-    parser.add_argument('--model', type=str)
-    parser.add_argument('--num_seeds', type=int)
-    parser.add_argument('--engine', type=str) # temporary fix to run multiple in parallel
-    parser.add_argument('--sm_mode', type=str)
-
-    args = parser.parse_args()
+async def do_work(args):
     dataset = args.dataset
     model = args.model
-    num_seeds =args.num_seeds
+    num_seeds = args.num_seeds
     chat_engine = args.engine
     sm_mode = args.sm_mode
 
-    assert sm_mode in ['discriminative', 'generative']
-    if sm_mode == 'generative':
+    cost_aware = args.cost_aware
+    budget = args.budget
+    mab_exp_smoothing_gamma = args.mab_exp_smoothing_gamma
+    if cost_aware:
+        assert (
+            budget and mab_exp_smoothing_gamma
+        ), "If using cost aware opt. budget and gamma have to be provided"
+
+    assert sm_mode in ["discriminative", "generative"]
+    if sm_mode == "generative":
         top_pct = 0.25
     else:
         top_pct = None
@@ -135,90 +152,194 @@ if __name__ == '__main__':
     # Load training and testing data
     if dataset in BAYESMARK_TASK_MAP:
         TASK_MAP = BAYESMARK_TASK_MAP
-        pickle_fpath = f'bayesmark/data/{dataset}.pickle'
-        with open(pickle_fpath, 'rb') as f:
+        pickle_fpath = f"bayesmark/data/{dataset}.pickle"
+        with open(pickle_fpath, "rb") as f:
             data = pickle.load(f)
-        X_train = data['train_x']
-        y_train = data['train_y']
-        X_test = data['test_x']
-        y_test = data['test_y']
+        X_train = data["train_x"]
+        y_train = data["train_y"]
+        X_test = data["test_x"]
+        y_test = data["test_y"]
     elif dataset in PRIVATE_TASK_MAP:
         TASK_MAP = PRIVATE_TASK_MAP
-        pickle_fpath = f'private_data/{dataset}.pickle'
-        with open(pickle_fpath, 'rb') as f:
+        pickle_fpath = f"private_data/{dataset}.pickle"
+        with open(pickle_fpath, "rb") as f:
             data = pickle.load(f)
-        X_train = data['train_x']
-        y_train = data['train_y']
-        X_test = data['test_x']
-        y_test = data['test_y']
+        X_train = data["train_x"]
+        y_train = data["train_y"]
+        X_test = data["test_x"]
+        y_test = data["test_y"]
     else:
-        raise ValueError(f'Invalid dataset: {dataset}')
-
+        raise ValueError(f"Invalid dataset: {dataset}")
 
     # Describe task context
     task_context = {}
-    task_context['model'] = model
-    task_context['task'] = TASK_MAP[dataset][0]
-    task_context['tot_feats'] = X_train.shape[1]
-    task_context['cat_feats'] = 0       # bayesmark datasets only have numerical features
-    task_context['num_feats'] = X_train.shape[1]
-    task_context['n_classes'] = len(np.unique(y_train))
-    task_context['metric'] = TASK_MAP[dataset][1]
-    task_context['lower_is_better'] = True if 'neg' in task_context['metric'] else False
-    task_context['num_samples'] = X_train.shape[0]
-    with open('hp_configurations/bayesmark.json', 'r') as f:
-        task_context['hyperparameter_constraints'] = json.load(f)[model]
-
+    task_context["model"] = model
+    task_context["task"] = TASK_MAP[dataset][0]
+    task_context["tot_feats"] = X_train.shape[1]
+    task_context["cat_feats"] = 0  # bayesmark datasets only have numerical features
+    task_context["num_feats"] = X_train.shape[1]
+    task_context["n_classes"] = len(np.unique(y_train))
+    task_context["metric"] = TASK_MAP[dataset][1]
+    task_context["lower_is_better"] = True if "neg" in task_context["metric"] else False
+    task_context["num_samples"] = X_train.shape[0]
+    with open("hp_configurations/bayesmark.json", "r") as f:
+        task_context["hyperparameter_constraints"] = json.load(f)[model]
 
     # define result save directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    save_res_dir = f'{script_dir}/results_{sm_mode}/{dataset}/{model}'
+    save_res_dir = (
+        f"{script_dir}/results_{sm_mode}/{dataset}/{model}/{budget}/{mab_exp_smoothing_gamma}"
+        if cost_aware
+        else f"{script_dir}/results_{sm_mode}/{dataset}/{model}"
+    )
     if not os.path.exists(save_res_dir):
         os.makedirs(save_res_dir)
     # define logging directory
-    logging_fpath = f'{script_dir}/logs_{sm_mode}/{dataset}/{model}.log'
+    logging_fpath = (
+        f"{script_dir}/logs_{sm_mode}/{dataset}/{model}/{budget}/{mab_exp_smoothing_gamma}.log"
+        if cost_aware
+        else f"{script_dir}/logs_{sm_mode}/{dataset}/{model}.log"
+    )
     if not os.path.exists(os.path.dirname(logging_fpath)):
         os.makedirs(os.path.dirname(logging_fpath))
     setup_logging(logging_fpath)
 
     tot_llm_cost = 0
     for seed in range(num_seeds):
-        logger.info('='*200)
-        logger.info(f'Executing LLAMBO ({sm_mode} | top_pct: {top_pct}) to tune {model} on {dataset} with seed {seed+1} / {num_seeds}...')
-        logger.info(f'Task context: {task_context}')
-
+        logger.info("=" * 200)
+        logger.info(
+            f"Executing LLAMBO ({sm_mode} | top_pct: {top_pct}) to tune {model} on {dataset} with seed {seed + 1} / {num_seeds}..."
+        )
+        logger.info(f"Task context: {task_context}")
+        if cost_aware:
+            logger.info(
+                f"Running cost aware optimisation with budget {budget} and gamma {mab_exp_smoothing_gamma}"
+            )
 
         benchmark = BayesmarkExpRunner(task_context, data, seed)
 
+        gp_bo_optimizer = None
+        mab_controller = None
+        if cost_aware:
+            scaling_map = {
+                "linear": "uniform",  # Linear scaling uses 'uniform' prior
+                "logit": "log-uniform",  # Logit scaling uses 'log-uniform' prior as the original Bayesmark challenge treats logit and log interchangeably
+                "log": "log-uniform",  # Log scaling uses 'log-uniform' prior
+            }
+            dimensions = []
+            for name, (dtype, scale, bounds) in task_context[
+                "hyperparameter_constraints"
+            ].items():
+                if dtype == "int":
+                    dimensions.append(
+                        Integer(
+                            bounds[0], bounds[1], prior=scaling_map[scale], name=name
+                        )
+                    )
+                elif dtype == "float":
+                    dimensions.append(
+                        Real(bounds[0], bounds[1], prior=scaling_map[scale], name=name)
+                    )
+            gp_bo_optimizer = GpBoOptimizer(
+                dimensions, lower_is_better=task_context["lower_is_better"]
+            )
+            mab_controller = MabController(
+                budget=budget, T=25, costs=1, gamma=mab_exp_smoothing_gamma
+            )
+
         # instantiate LLAMBO
-        llambo = LLAMBO(task_context, sm_mode, n_candidates=10, n_templates=2, n_gens=10, 
-                        alpha=0.1, n_initial_samples=5, n_trials=25, init_f=benchmark.generate_initialization,
-                        bbox_eval_f=benchmark.evaluate_point, chat_engine=chat_engine, top_pct=top_pct)
+        llambo = LLAMBO(
+            task_context,
+            sm_mode,
+            n_candidates=10,
+            n_templates=2,
+            n_gens=10,
+            alpha=0.1,
+            n_initial_samples=5,
+            n_trials=25,
+            init_f=benchmark.generate_initialization,
+            bbox_eval_f=benchmark.evaluate_point,
+            chat_engine=chat_engine,
+            top_pct=top_pct,
+            gp_bo_optimizer=gp_bo_optimizer,
+            mab_controller=mab_controller,
+        )
         llambo.seed = seed
         configs, fvals = llambo.optimize()
 
-
-        logger.info(f'[LLAMBO] Query cost: {sum(llambo.llm_query_cost):.4f}')
-        logger.info(f'[LLAMBO] Query time: {sum(llambo.llm_query_time):.4f}')
+        logger.info(f"[LLAMBO] Query cost: {sum(llambo.llm_query_cost):.4f}")
+        logger.info(f"[LLAMBO] Query time: {sum(llambo.llm_query_time):.4f}")
+        if cost_aware:
+            logger.info(f"[LLAMBO] Budget left: {mab_controller.budgets}")
+            logger.info(f"[LLAMBO] Choices made: {mab_controller.choices}")
+            logger.info(f"[LLAMBO] Cheap Means: {mab_controller.cheap_means}")
+            logger.info(f"[LLAMBO] Expensive Means: {mab_controller.expensive_means}")
+            logger.info(f"[LLAMBO] Probability for LLM: {mab_controller.probabilities}")
         tot_llm_cost += sum(llambo.llm_query_cost)
 
-        # save search history
-        search_history = pd.concat([configs, fvals], axis=1)
-        search_history.to_csv(f'{save_res_dir}/{seed}.csv', index=False)
+        search_history = (
+            pd.concat(
+                [
+                    configs,
+                    fvals,
+                    pd.Series(mab_controller.budgets, name="budget remaining"),
+                    pd.Series(mab_controller.choices, name="choice"),
+                    pd.Series(mab_controller.cheap_means, name="expected reward GP"),
+                    pd.Series(
+                        mab_controller.expensive_means, name="expected reward LLM"
+                    ),
+                    pd.Series(mab_controller.probabilities, name="prob. for LLM"),
+                ],
+                axis=1,
+            )
+            if cost_aware
+            else pd.concat(
+                [
+                    configs,
+                    fvals,
+                ],
+                axis=1,
+            )
+        )
+        search_history.to_csv(f"{save_res_dir}/{seed}.csv", index=False)
 
-        
         logger.info(search_history)
-        logger.info(f'[LLAMBO] RUN COMPLETE, saved results to {save_res_dir}...')
+        logger.info(f"[LLAMBO] RUN COMPLETE, saved results to {save_res_dir}...")
 
         # save search info
         search_info = {
-            'llm_query_cost_breakdown': llambo.llm_query_cost,
-            'llm_query_time_breakdown': llambo.llm_query_time,
-            'llm_query_cost': sum(llambo.llm_query_cost),
-            'llm_query_time': sum(llambo.llm_query_time),
+            "llm_query_cost_breakdown": llambo.llm_query_cost,
+            "llm_query_time_breakdown": llambo.llm_query_time,
+            "llm_query_cost": sum(llambo.llm_query_cost),
+            "llm_query_time": sum(llambo.llm_query_time),
         }
-        with open(f'{save_res_dir}/{seed}_search_info.json', 'w') as f:
+        with open(f"{save_res_dir}/{seed}_search_info.json", "w") as f:
             json.dump(search_info, f)
 
-    logger.info('='*200)
-    logger.info(f'[LLAMBO] {seed+1} evaluation runs complete! Total cost: ${tot_llm_cost:.4f}')
+    logger.info("=" * 200)
+    logger.info(
+        f"[LLAMBO] {seed + 1} evaluation runs complete! Total cost: ${tot_llm_cost:.4f}"
+    )
+
+
+def main():
+    # parse input arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dataset", type=str)
+    parser.add_argument("--model", type=str)
+    parser.add_argument("--num_seeds", type=int)
+    parser.add_argument(
+        "--engine", type=str
+    )  # temporary fix to run multiple in parallel
+    parser.add_argument("--sm_mode", type=str)
+    parser.add_argument("--cost_aware", type=bool, default=False)
+    parser.add_argument("--budget", type=int)
+    parser.add_argument("--mab_exp_smoothing_gamma", type=float)
+
+    args = parser.parse_args()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(do_work(args))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,10 @@
+.idea
+.ipynb_checkpoints
+*__pycache__*
+.DS_Store
+
+nohup.out
+tutorial.ipynb
+exp_bayesmark/logs_discriminative*
+exp_bayesmark/results_discriminative*
+*.pdf

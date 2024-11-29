@@ -63,6 +63,7 @@ pip install -r requirements.txt
 ## 2. Reproducing Results
 
 To reproduce results, execute any of the shell experimental shell scripts:
+- To run Bayesmark benchmark in a cost aware manner: ```run_bayesmark_public_cost_aware.sh```
 - To run Bayesmark benchmark: ```run_bayesmark_public.sh```
 - To run HPOBench benchmark: ```run_hpo_bench.sh```
 - To evaluate the surrogate model: ```run_evaluate_dis_sm.sh``` (discriminative SM) or ```run_evaluate_gen_sm.sh``` (generative SM)

@@ -2,7 +2,7 @@
     "RandomForest": {
         "max_depth": ["int", "linear", [1, 15]],
         "max_features": ["float", "logit", [0.01, 0.99]],
-        "min_impurity_decrease": ["float", "linear", [0.0, 0.5]],
+        "min_impurity_decrease": ["float", "linear", [0, 0.5]],
         "min_samples_leaf": ["float", "logit", [0.01, 0.49]],
         "min_samples_split": ["float", "logit", [0.01, 0.99]],
         "min_weight_fraction_leaf": ["float", "logit", [0.01, 0.49]]
@@ -10,7 +10,7 @@
     "DecisionTree": {
         "max_depth": ["int", "linear", [1, 15]],
         "max_features": ["float", "logit", [0.01, 0.99]],
-        "min_impurity_decrease": ["float", "linear", [0.0, 0.5]],
+        "min_impurity_decrease": ["float", "linear", [0, 0.5]],
         "min_samples_leaf": ["float", "logit", [0.01, 0.49]],
         "min_samples_split": ["float", "logit", [0.01, 0.99]],
         "min_weight_fraction_leaf": ["float", "logit", [0.01, 0.49]]
